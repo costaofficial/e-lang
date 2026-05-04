@@ -1,11 +1,11 @@
-// Caffè alle 9:00 ogni mattina
+// Coffee at 9:00 every morning
 time every day at 09:00 do
     with browser do
         open "https://google.com"
         with page do
             find "#search"
             click "q"
-            log "cercato caffe"
+            log "searched coffee"
         done
     done
 done or log error

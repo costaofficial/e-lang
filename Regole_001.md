@@ -1,26 +1,22 @@
-Ok, facciamo una mappa completa, dalla A alla Z, senza perdersi nei dettagli ma senza lasciare buchi. Immaginala come il manuale mentale del tuo linguaggio.
+# 🧠 WHAT IS E (in one sentence)
+
+> E is a language that describes **when to do something, on what, and what to do**, leaving all complexity to the runtime.
 
 ---
 
-# 🧠 COS’È E (in una frase)
+# 🧱 1) THE BUILDING BLOCKS
 
-> E è un linguaggio che descrive **quando fare qualcosa, su cosa, e cosa fare**, lasciando al runtime tutta la complessità.
-
----
-
-# 🧱 1) I MATTONI BASE
-
-## ⏰ Tempo (quando)
+## ⏰ Time (when)
 
 ```rust
 time every hour at 00 do
 ```
 
-👉 definisce **quando parte tutto**
+👉 defines **when everything starts**
 
 ---
 
-## 🧱 Oggetti (su cosa)
+## 🧱 Objects (on what)
 
 ```rust
 file "01.md"
@@ -29,11 +25,11 @@ browser
 page
 ```
 
-👉 sono le “cose” del mondo
+👉 these are the "things" in the world
 
 ---
 
-## ⚙️ Azioni (cosa fai)
+## ⚙️ Actions (what you do)
 
 ```rust
 create
@@ -44,11 +40,11 @@ upload
 email
 ```
 
-👉 sono i verbi
+👉 these are the verbs
 
 ---
 
-## 🧩 Struttura (come gira)
+## 🧩 Structure (how it runs)
 
 ```rust
 with ... do
@@ -56,23 +52,23 @@ done
 or
 ```
 
-👉 controlla il flusso
+👉 controls the flow
 
 ---
 
-# 🔥 2) STRUTTURA COMPLETA
+# 🔥 2) FULL STRUCTURE
 
 ```rust
 time ... do
-    azioni
+    actions
 done or fallback
 ```
 
-👉 sempre questo schema
+👉 always this pattern
 
 ---
 
-# 🧠 3) CONTESTO (`with`)
+# 🧠 3) CONTEXT (`with`)
 
 ```rust
 with file "01.md" do
@@ -80,44 +76,44 @@ with file "01.md" do
 done
 ```
 
-👉 significa:
+👉 means:
 
-> lavora su questo oggetto
+> work on this object
 
-⚠️ e tu hai deciso:
+⚠️ rules you decided:
 
-* deve esistere già ✔️
-* non crea automaticamente ✔️
+* must already exist ✔️
+* does not auto-create ✔️
 
 ---
 
-# 🎯 4) DIREZIONE (`to`)
+# 🎯 4) DIRECTION (`to`)
 
 ```rust
 email to "info@..." file "01.md"
 ```
 
-👉 schema:
+👉 pattern:
 
 ```text
-azione → to → destinazione → oggetto
+action → to → destination → object
 ```
 
 ---
 
-# ⚠️ 5) ERRORI
+# ⚠️ 5) ERRORS
 
-## 🔴 Globale
+## 🔴 Global
 
 ```rust
 done or log error
 ```
 
-👉 qualsiasi errore → qui
+👉 any error → here
 
 ---
 
-## 🟡 Locale
+## 🟡 Local
 
 ```rust
 login "user" "pass" or do
@@ -126,7 +122,7 @@ login "user" "pass" or do
 done
 ```
 
-👉 errore specifico
+👉 specific error
 
 ---
 
@@ -138,11 +134,11 @@ retry 3 times do
 done
 ```
 
-👉 riprova automaticamente
+👉 automatically retries
 
 ---
 
-# ⏱️ 7) ATTESA
+# ⏱️ 7) WAITING
 
 ## ✅ Auto-wait (default)
 
@@ -150,14 +146,14 @@ done
 click "#login"
 ```
 
-👉 aspetta da solo:
+👉 waits automatically for:
 
-* elemento visibile
-* cliccabile
+* element visible
+* element clickable
 
 ---
 
-## 🔧 Manuale
+## 🔧 Manual
 
 ```rust
 wait until visible "#chart"
@@ -166,15 +162,15 @@ wait until hidden ".loading"
 
 ---
 
-# 📦 8) DOWNLOAD (caso difficile)
+# 📦 8) DOWNLOAD (hard case)
 
 ```rust
 wait download
 ```
 
-👉 sotto:
+👉 under the hood:
 
-1. evento browser
+1. browser event
 2. filesystem
 3. polling
 
@@ -193,10 +189,10 @@ with browser do
 done
 ```
 
-👉 livelli:
+👉 layers:
 
-* browser → finestra
-* page → contenuto
+* browser → window
+* page → content
 * element → target
 
 ---
@@ -207,7 +203,7 @@ done
 login "user" "pass"
 ```
 
-👉 due modalità:
+👉 two modes:
 
 * auto (smart detect)
 * manual (selector)
@@ -220,13 +216,13 @@ login "user" "pass"
 with page { timeout: 10s } do
 ```
 
-👉 evita blocchi infiniti
+👉 prevents infinite blocking
 
 ---
 
-# 🔄 12) SCRIPT vs AUTOMAZIONE
+# 🔄 12) SCRIPT vs AUTOMATION
 
-## Script (subito)
+## Script (immediate)
 
 ```rust
 do
@@ -236,7 +232,7 @@ done
 
 ---
 
-## Automazione
+## Automation
 
 ```rust
 time every day at 08:00 do
@@ -244,50 +240,50 @@ time every day at 08:00 do
 
 ---
 
-# ⚙️ 13) COME FUNZIONA DAVVERO (sotto)
+# ⚙️ 13) HOW IT REALLY WORKS (under the hood)
 
 ```text
 E code
 ↓
 Parser
 ↓
-E2 (struttura)
+E2 (structure)
 ↓
-Runtime Rust
+Rust Runtime
 ↓
-Sistema operativo
+Operating system
 ```
 
 ---
 
-# ⚡ 14) ASINCRONIA
+# ⚡ 14) ASYNCHRONY
 
-👉 per l’utente:
+👉 for the user:
 
-* sequenziale
+* sequential
 
-👉 sotto:
+👉 under the hood:
 
 * async / event-driven
 
 ---
 
-# 🧠 15) MODELLO MENTALE
+# 🧠 15) MENTAL MODEL
 
-👉 tu scrivi:
+👉 you write:
 
-> cosa vuoi + quando
+> what you want + when
 
-👉 il sistema fa:
+👉 the system handles:
 
-* attese
-* retry
-* gestione errori
+* waits
+* retries
+* error handling
 * performance
 
 ---
 
-# 💥 16) ESEMPIO COMPLETO FINALE
+# 💥 16) FINAL COMPLETE EXAMPLE
 
 ```rust
 time every day at 02:00 do
@@ -317,31 +313,30 @@ done or log error
 
 ---
 
-# 🎯 RIASSUNTO FINALE
+# 🎯 FINAL SUMMARY
 
-E è:
+E is:
 
-* dichiarativo ✔️
-* leggibile ✔️
-* orientato ad eventi ✔️
-* con runtime potente ✔️
-
----
-
-# 💥 LA FRASE PIÙ IMPORTANTE
-
-> E non è codice
-> è una descrizione di azioni nel tempo
+* declarative ✔️
+* readable ✔️
+* event-oriented ✔️
+* powerful runtime ✔️
 
 ---
 
-# 🚀 Se vuoi il prossimo step
+# 💥 THE MOST IMPORTANT SENTENCE
 
-Possiamo fare:
+> E is not code
+> it's a description of actions in time
 
-👉 **specifica ufficiale del linguaggio (tipo doc vera)**
-oppure
-👉 iniziare a scrivere il parser in Rust
+---
 
-Dimmi dove vuoi andare 😄
+# 🚀 Next step
 
+We can:
+
+👉 **official language specification (real docs)**
+or
+👉 **start writing the parser in Rust**
+
+Where do you want to go? 😄

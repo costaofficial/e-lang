@@ -1,4 +1,4 @@
-# Grammatica formale di E (EBNF)
+# E formal grammar (EBNF)
 
 ---
 
@@ -35,7 +35,7 @@ minute     = number ;  (* 0-59 *)
 
 ---
 
-## 4) Script block (immediato)
+## 4) Script block (immediate)
 
 ```
 script_block = "do", actions, "done", [ "or", fallback ] ;
@@ -43,15 +43,15 @@ script_block = "do", actions, "done", [ "or", fallback ] ;
 
 ---
 
-## 5) Actions (sequenza)
+## 5) Actions (sequential)
 
 ```
-actions   = { statement } ;  (* sequenziale *)
+actions   = { statement } ;  (* sequential *)
 ```
 
 ---
 
-## 6) Statement (tutti possono avere fallback)
+## 6) Statement (all can have fallback)
 
 ```
 statement = core_statement, [ "or", fallback ] ;
@@ -84,7 +84,7 @@ simple_fallback = log_action | stop_statement ;
 
 ---
 
-## 8) With block (imposta current object)
+## 8) With block (sets current object)
 
 ```
 with_block = "with", object, [ "{", config, "}" ], "do", actions, "done" ;
@@ -101,7 +101,7 @@ duration  = number, "s" | number, "ms" ;
 
 ---
 
-## 9) UI actions (`find` imposta current element)
+## 9) UI actions (`find` sets current element)
 
 ```
 ui_action = "click", [ selector ]
@@ -111,8 +111,8 @@ ui_action = "click", [ selector ]
 selector  = string ;
 ```
 
-📌 `click` senza selector usa il current element impostato da `find`.
-📌 Errore se non c'è né selector né current element.
+📌 `click` without selector uses the current element set by `find`.
+📌 Error if there is neither a selector nor a current element.
 
 ---
 
@@ -122,8 +122,8 @@ selector  = string ;
 write_action = "write", ( object, string | string ) ;
 ```
 
-📌 Se manca object, usa il current object (da `with`).
-📌 Errore se non c'è current object.
+📌 If object is missing, uses the current object (from `with`).
+📌 Error if there is no current object.
 
 ---
 
@@ -135,8 +135,8 @@ transfer_action = ("email" | "upload"), "to", target, [ object ] ;
 target = string ;
 ```
 
-📌 `to` specifica la destinazione.
-📌 object opzionale → usa current object se omesso.
+📌 `to` specifies the destination.
+📌 object is optional → uses current object if omitted.
 
 ---
 
@@ -168,7 +168,7 @@ condition    = "visible", selector
 watch_block = "watch", string, "do", actions, "done" ;
 ```
 
-(string = path da osservare)
+(string = path to watch)
 
 ---
 
@@ -186,7 +186,7 @@ login_statement = "login", string, string ;
 stop_statement = "stop" ;
 ```
 
-📌 `stop` ferma il blocco `with` o `retry` più vicino. Se fuori da entrambi, ferma l'intero programma.
+📌 `stop` halts the nearest enclosing `with` or `retry` block. If outside both, it halts the entire program.
 
 ---
 
@@ -208,19 +208,19 @@ digit   = "0" | "1" | ... | "9" ;
 
 ---
 
-## 19) Commenti
+## 19) Comments
 
 ```
 comment = "//", { character }, newline ;
 ```
 
-I commenti sono ignorati dal parser.
+Comments are ignored by the parser.
 
 ---
 
-## Riassunto regole runtime
+## Runtime rules summary
 
-| Concetto | Impostato da | Usato da | Errore se |
-|----------|-------------|----------|-----------|
-| Current element | `find` | `click` senza args | `click` senza né args né current element |
-| Current object | `with` | `write`, `upload`, `email` senza object | azione richiede object ma non c'è contesto |
+| Concept | Set by | Used by | Error if |
+|---------|--------|---------|----------|
+| Current element | `find` | `click` without args | `click` without args and no current element |
+| Current object | `with` | `write`, `upload`, `email` without object | action needs object but no context |

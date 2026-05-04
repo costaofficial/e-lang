@@ -1,4 +1,4 @@
-// Login con retry e fallback locale
+// Login with retry and local fallback
 do
     with browser do
         open "https://example.com/login"
@@ -7,7 +7,7 @@ do
                 login "mario" "password123"
                 wait until visible ".dashboard"
             done or do
-                log "login fallito"
+                log "login failed"
                 stop
             done
         done

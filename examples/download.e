@@ -1,7 +1,7 @@
-// Scarica file e processali
+// Download files and process them
 time at 18:00 do
     with browser do
-        open "https://reportingsito.com"
+        open "https://reportingsite.com"
         with page do
             login "user" "pass"
             click "#export-btn"
@@ -13,7 +13,7 @@ time at 18:00 do
     watch "downloads/" do
         with file "*.csv" do
             upload to "https://api.import.com/csv"
-            log "importato csv"
+            log "imported csv"
         done
     done
 done

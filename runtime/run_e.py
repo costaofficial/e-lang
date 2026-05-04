@@ -1,11 +1,11 @@
 """
-Interprete per E — Linguaggio di automazione
-=============================================
-Esegue l'AST prodotto da parser_e.py
+E interpreter — Automation Language
+====================================
+Executes the AST produced by parser_e.py
 
-Uso:
-    python3 interprete_e.py test1_caffe.e
-    python3 interprete_e.py --live test5_completo.e   # esegue azioni reali
+Usage:
+    python3 run_e.py script.e
+    python3 run_e.py --live script.e    # actually runs actions
 """
 
 import sys
@@ -15,7 +15,6 @@ import subprocess
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from parser.parser_e import lex, Parser, ParseError, Program, TimeBlock, ScriptBlock
 from parser.parser_e import Schedule, WithBlock, ObjectRef, RetryBlock, WatchBlock, Action
 
@@ -25,7 +24,7 @@ from parser.parser_e import Schedule, WithBlock, ObjectRef, RetryBlock, WatchBlo
 # ──────────────────────────────────────────────
 
 class EError(Exception):
-    """Errore durante l'esecuzione di un'azione E."""
+    """Error during E action execution."""
     def __init__(self, message, line=0):
         super().__init__(message)
         self.line = line
@@ -34,10 +33,10 @@ class EError(Exception):
 class Runtime:
     def __init__(self, live=False):
         self.live = live
-        self.current_element = None   # impostato da find
-        self.current_object = None    # impostato da with
-        self.browser_process = None    # per browser reali
-        self._stop = False             # flag per stop
+        self.current_element = None   # set by find
+        self.current_object = None    # set by with
+        self.browser_process = None
+        self._stop = False
 
     def log(self, msg, line=0):
         prefix = f"[line {line}]" if line else ""
@@ -72,30 +71,30 @@ class Runtime:
         elif isinstance(node, Action):
             self._exec_action(node)
         else:
-            self.log(f"⚠️ nodo sconosciuto: {type(node).__name__}", 0)
+            self.log(f"⚠️ unknown node: {type(node).__name__}", 0)
 
-    # ── Error guard (statement con fallback) ──
+    # ── Error guard (statement with fallback) ──
 
     def _safe_run(self, node, block_fallback=None, line=0):
-        """Esegue node. Fallback: prima locale (sul nodo), poi del blocco."""
+        """Execute node. Fallback order: local (on node) first, then block fallback."""
         if self._stop:
             return
         try:
             self._run(node)
         except EError as e:
-            msg = str(e) or "errore sconosciuto"
-            self.log(f"❌ ERRORE: {msg}" + (f" [line {e.line}]" if e.line else ""), line)
+            msg = str(e) or "unknown error"
+            self.log(f"❌ ERROR: {msg}" + (f" [line {e.line}]" if e.line else ""), line)
             local_fb = getattr(node, 'fallback', None)
             if local_fb:
-                self.log(f"  ↳ eseguo fallback LOCALE", line)
+                self.log(f"  ↳ running LOCAL fallback", line)
                 for fb_node in local_fb:
                     self._run(fb_node)
             elif block_fallback:
-                self.log(f"  ↳ eseguo fallback GLOBALE", line)
+                self.log(f"  ↳ running BLOCK fallback", line)
                 for fb_node in block_fallback:
                     self._run(fb_node)
             else:
-                self.log(f"  ↳ nessun fallback, propago errore", line)
+                self.log(f"  ↳ no fallback, propagating error", line)
                 raise
 
     # ── Block implementations ──
@@ -110,9 +109,9 @@ class Runtime:
         self.log(info, node.line)
 
         if not self.live:
-            self.log("  (dry-run: eseguo subito una volta)", node.line)
+            self.log("  (dry-run: running once now)", node.line)
         else:
-            self.log("  (live: eseguo subito, scheduling non implementato)", node.line)
+            self.log("  (live: running once, scheduler not implemented)", node.line)
 
         for action in node.actions:
             if self._stop:
@@ -150,7 +149,6 @@ class Runtime:
                 break
             self._safe_run(action, node.fallback, node.line)
 
-        # Ripristina contesto precedente
         self.current_object = prev_object
 
     def _exec_retry_block(self, node: RetryBlock):
@@ -158,41 +156,38 @@ class Runtime:
         for attempt in range(1, node.times + 1):
             if self._stop:
                 break
-            self.log(f"🔄 Tentativo {attempt}/{node.times}", node.line)
+            self.log(f"🔄 Attempt {attempt}/{node.times}", node.line)
             try:
                 self._run_actions_safe(node.actions)
                 last_error = None
-                break  # successo
+                break
             except EError as e:
                 last_error = e
                 if attempt < node.times:
-                    self.log(f"  fallito, riprovo...", node.line)
+                    self.log(f"  failed, retrying...", node.line)
                     time.sleep(1)
                 continue
 
         if last_error and node.fallback:
-            self.log(f"  ❌ tutti i tentativi falliti, eseguo fallback", node.line)
+            self.log(f"  ❌ all attempts failed, running fallback", node.line)
             for fb in node.fallback:
                 self._run(fb)
         elif last_error:
-            raise EError(f"retry {node.times}x esaurito", node.line)
+            raise EError(f"retry {node.times}x exhausted", node.line)
 
     def _exec_watch_block(self, node: WatchBlock):
         path = node.path
-        self.log(f"👀 Watch: '{path}' (simulato — eseguo azioni una volta)", node.line)
-        # In live, usare watchdog. Per ora esegue le azioni una volta.
+        self.log(f"👀 Watch: '{path}' (simulated — running actions once)", node.line)
         for action in node.actions:
             if self._stop:
                 break
             self._safe_run(action, node.fallback, node.line)
 
     def _run_actions_safe(self, actions):
-        """Esegue una lista di azioni, propagando SOLO errori senza fallback locale."""
+        """Execute a list of actions, propagating ONLY errors without local fallback."""
         for action in actions:
             if self._stop:
                 break
-            # Ogni azione gestisce il proprio fallback locale
-            # Solo gli errori NON gestiti propagano al chiamante
             self._safe_run(action, block_fallback=None, line=action.line)
 
     # ── Action implementations ──
@@ -216,7 +211,7 @@ class Runtime:
         }
         fn = dispatcher.get(kind)
         if not fn:
-            raise EError(f"azione sconosciuta: '{kind}'", node.line)
+            raise EError(f"unknown action: '{kind}'", node.line)
         fn(node)
 
     def _action_open(self, node: Action):
@@ -229,22 +224,22 @@ class Runtime:
     def _action_click(self, node: Action):
         selector = node.args[0] if node.args else self.current_element
         if not selector:
-            raise EError("click senza selector e senza current element (usa find prima)", node.line)
+            raise EError("click without selector and no current element (use find first)", node.line)
         self.log(f"  🖱️ click '{selector}'", node.line)
 
     def _action_find(self, node: Action):
         selector = node.args[0]
         self.current_element = selector
-        self.log(f"  🔍 find '{selector}' → current element impostato", node.line)
+        self.log(f"  🔍 find '{selector}' → current element set", node.line)
 
     def _action_write(self, node: Action):
         obj = node.args[0]
         content = node.args[1]
         target = obj or self.current_object
         if not target or target.kind != 'file':
-            raise EError("write richiede un file (usa with file o write file ...)", node.line)
+            raise EError("write requires a file (use with file or write file ...)", node.line)
         path = target.value
-        self.log(f"  ✏️ write '{path}' → {len(content)} caratteri", node.line)
+        self.log(f"  ✏️ write '{path}' → {len(content)} characters", node.line)
         if self.live:
             with open(path, 'w') as f:
                 f.write(content)
@@ -252,10 +247,10 @@ class Runtime:
     def _action_email(self, node: Action):
         target_addr = node.args[0]
         obj = node.args[1] or self.current_object
-        file_info = f" (allegato: {obj.value})" if obj else ""
+        file_info = f" (attachment: {obj.value})" if obj else ""
         self.log(f"  📧 email to '{target_addr}'{file_info}", node.line)
         if self.live:
-            self.log("  (invio email non implementato — usa un servizio SMTP)", node.line)
+            self.log("  (email sending not implemented — use SMTP service)", node.line)
 
     def _action_upload(self, node: Action):
         url = node.args[0]
@@ -267,7 +262,7 @@ class Runtime:
         user, pwd = node.args
         self.log(f"  🔐 login '{user}' / '{'*' * len(pwd)}'", node.line)
         if self.live:
-            self.log("  (login automatico non implementato — usa Selenium)", node.line)
+            self.log("  (auto login not implemented — use Selenium)", node.line)
 
     def _action_log(self, node: Action):
         msg = node.args[0]
@@ -281,14 +276,14 @@ class Runtime:
         self.log(f"  ⏳ wait download...", node.line)
         if self.live:
             time.sleep(2)
-        self.log(f"  ✅ download completato", node.line)
+        self.log(f"  ✅ download complete", node.line)
 
     def _action_wait_until(self, node: Action):
         cond, sel = node.args
         self.log(f"  ⏳ wait until {cond} '{sel}'...", node.line)
         if self.live:
             time.sleep(1)
-        self.log(f"  ✅ condizione '{cond} {sel}' soddisfatta", node.line)
+        self.log(f"  ✅ condition '{cond} {sel}' met", node.line)
 
     def _action_run(self, node: Action):
         cmd = node.args[0]
@@ -307,7 +302,7 @@ class Runtime:
             Path(name).touch()
 
     def _open_browser(self):
-        self.log("  (browser: nessuna implementazione live)", 0)
+        self.log("  (browser: no live implementation)", 0)
 
 
 # ──────────────────────────────────────────────
@@ -323,13 +318,13 @@ def main():
         if a == '--live':
             live = True
         elif a.startswith('--'):
-            print(f"Opzione sconosciuta: {a}")
+            print(f"Unknown option: {a}")
             sys.exit(1)
         else:
             files.append(a)
 
     if not files:
-        print("Uso: python3 interprete_e.py [--live] <file.e> ...")
+        print("Usage: python3 run_e.py [--live] <file.e> ...")
         sys.exit(1)
 
     runtime = Runtime(live=live)
@@ -337,7 +332,7 @@ def main():
 
     for path in files:
         print(f"\n{'='*60}")
-        print(f"▶️  ESEGUO: {path}" + (" (LIVE)" if live else " (dry-run)"))
+        print(f"▶️  RUNNING: {path}" + (" (LIVE)" if live else " (dry-run)"))
         print(f"{'='*60}")
         try:
             with open(path) as f:
@@ -346,15 +341,15 @@ def main():
             parser = Parser(tokens)
             ast = parser.parse()
             runtime.run(ast)
-            print(f"\n✅ Completato: {path}")
+            print(f"\n✅ Done: {path}")
         except (SyntaxError, ParseError) as e:
-            print(f"❌ ERRORE DI SINTASSI: {e}")
+            print(f"❌ SYNTAX ERROR: {e}")
             ok = False
         except EError as e:
-            print(f"❌ ERRORE RUNTIME: {e}")
+            print(f"❌ RUNTIME ERROR: {e}")
             ok = False
         except FileNotFoundError:
-            print(f"❌ File non trovato: {path}")
+            print(f"❌ File not found: {path}")
             ok = False
 
     if not ok:

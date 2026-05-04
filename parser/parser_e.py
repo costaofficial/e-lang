@@ -1,10 +1,10 @@
 """
-Parser per E — Linguaggio di automazione
-=========================================
+E parser — Automation Language
+=================================
 Lexer + Recursive Descent Parser → AST
 
-Uso:
-    python parser_e.py test1_caffe.e
+Usage:
+    python parser_e.py script.e
 """
 
 import sys
@@ -130,7 +130,7 @@ def lex(source: str):
             tag = 'KEYWORD' if val in KEYWORDS else 'IDENT'
             tokens.append(Token(tag, val, line))
         elif kind == 'MISMATCH':
-            raise SyntaxError(f"carattere sconosciuto '{val}' a linea {line}")
+            raise SyntaxError(f"unknown character '{val}' at line {line}")
         else:
             tokens.append(Token(kind, val, line))
     return tokens
@@ -161,11 +161,10 @@ class Parser:
         t = self.pop()
         if t.kind != kind or (value is not None and t.value != value):
             expected = repr(value) if value else kind
-            raise ParseError(f"linea {t.line}: atteso {expected}, trovato '{t.value}'")
+            raise ParseError(f"line {t.line}: expected {expected}, got '{t.value}'")
         return t
 
     def maybe(self, kind, value=None):
-        """Consume and return token if it matches, else None."""
         t = self.peek()
         if t.kind == kind and (value is None or t.value == value):
             return self.pop()
@@ -193,7 +192,7 @@ class Parser:
             return self.parse_time_block()
         elif t.value == 'do':
             return self.parse_script_block()
-        raise ParseError(f"linea {t.line}: atteso 'time' o 'do', trovato '{t.value}'")
+        raise ParseError(f"line {t.line}: expected 'time' or 'do', got '{t.value}'")
 
     def parse_time_block(self):
         line = self.pop().line
@@ -219,7 +218,7 @@ class Parser:
         elif t.value == 'at':
             self.pop()
             return Schedule('at', time=self.parse_time(), line=line)
-        raise ParseError(f"linea {t.line}: atteso 'every' o 'at', trovato '{t.value}'")
+        raise ParseError(f"line {t.line}: expected 'every' or 'at', got '{t.value}'")
 
     def parse_time(self):
         h = self.expect('NUMBER').value
@@ -281,7 +280,7 @@ class Parser:
             return self.parse_log_action()
         elif t.value in self.SIMPLE_ACTIONS:
             return self.parse_simple_action()
-        raise ParseError(f"linea {t.line}: azione sconosciuta '{t.value}'")
+        raise ParseError(f"line {t.line}: unknown action '{t.value}'")
 
     def parse_simple_action(self):
         t = self.pop()
@@ -313,7 +312,7 @@ class Parser:
             return ObjectRef(t.value, name, line=t.line)
         elif t.value in ('browser', 'page'):
             return ObjectRef(t.value, line=t.line)
-        raise ParseError(f"linea {t.line}: oggetto sconosciuto '{t.value}'")
+        raise ParseError(f"line {t.line}: unknown object '{t.value}'")
 
     def parse_retry_block(self):
         line = self.pop().line
@@ -334,18 +333,16 @@ class Parser:
 
     def parse_wait_statement(self):
         line = self.pop().line
-        # wait download  (senza until)
         if self.peek().value == 'download':
             self.pop()
             return Action('wait_download', line=line)
-        # wait until visible/hidden "..."
         self.expect('KEYWORD', 'until')
         t = self.peek()
         if t.value in ('visible', 'hidden'):
             cond = self.pop().value
             sel = self.expect('STRING').value.strip('"')
             return Action('wait_until', [cond, sel], line=line)
-        raise ParseError(f"linea {t.line}: atteso 'visible', 'hidden' o 'download'")
+        raise ParseError(f"line {t.line}: expected 'visible', 'hidden' or 'download'")
 
     def parse_login_statement(self):
         line = self.pop().line
@@ -382,7 +379,6 @@ class Parser:
         if kind == 'find':
             sel = self.expect('STRING').value.strip('"')
             return Action('find', [sel], line=line)
-        # click: selector opzionale
         if self.peek().kind == 'STRING':
             sel = self.pop().value.strip('"')
             return Action('click', [sel], line=line)
@@ -396,7 +392,7 @@ class Parser:
         elif t.kind in ('KEYWORD', 'IDENT'):
             msg = self.pop().value
         else:
-            raise ParseError(f"linea {t.line}: atteso stringa o identificatore per log")
+            raise ParseError(f"line {t.line}: expected string or identifier for log")
         return Action('log', [msg], line=line)
 
     def parse_optional_fallback(self):
@@ -412,13 +408,12 @@ class Parser:
             self.pop()
             actions = self.parse_actions()
             self.expect('KEYWORD', 'done')
-            return actions  # block fallback = list of actions
-        # simple fallback: log or stop
+            return actions
         return [self.parse_core_statement()]
 
 
 # ──────────────────────────────────────────────
-# Pretty Printer (per vedere l'AST)
+# Pretty Printer (AST dump)
 # ──────────────────────────────────────────────
 
 def dump(node, indent=0):
@@ -485,7 +480,7 @@ def dump(node, indent=0):
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python parser_e.py <file.e>")
+        print("Usage: python parser_e.py <file.e>")
         sys.exit(1)
 
     for path in sys.argv[1:]:
@@ -500,9 +495,9 @@ def main():
             ast = parser.parse()
             dump(ast)
         except (SyntaxError, ParseError) as e:
-            print(f"❌ ERRORE: {e}")
+            print(f"❌ ERROR: {e}")
         except FileNotFoundError:
-            print(f"❌ File non trovato: {path}")
+            print(f"❌ File not found: {path}")
 
 
 if __name__ == '__main__':
