@@ -6,19 +6,15 @@
 
 ```
 program    = { statement_unit } ;
+
+statement_unit = time_unit | script_unit | fn_definition | let_statement | import_statement ;
 ```
+
+Top-level can be `time`, `do`, `fn`, `let`, or `import`.
 
 ---
 
-## 2) Statement blocks
-
-```
-statement_unit = time_unit | script_unit ;
-```
-
----
-
-## 3) Time block
+## 2) Scheduling
 
 ```
 time_unit = "time", schedule, "do", actions, "done", [ "or", fallback ] ;
@@ -35,7 +31,7 @@ minute     = number ;  (* 0-59 *)
 
 ---
 
-## 4) Script block (immediate)
+## 3) Script block
 
 ```
 script_unit = "do", actions, "done", [ "or", fallback ] ;
@@ -43,15 +39,17 @@ script_unit = "do", actions, "done", [ "or", fallback ] ;
 
 ---
 
-## 5) Actions (sequential)
+## 4) Actions
 
 ```
-actions   = { statement } ;  (* sequential *)
+actions = { statement } ;
 ```
+
+All actions run sequentially, top to bottom.
 
 ---
 
-## 6) Statement (all can have fallback)
+## 5) Statements
 
 ```
 statement = core_statement, [ "or", fallback ] ;
@@ -70,62 +68,115 @@ core_statement =
     | when_unit
     | get_number_action
     | find_all_action
+    | let_statement
+    | fn_definition
+    | for_statement
+    | import_statement
+    | expression
     ;
 ```
 
 ---
 
-## 7) When block
+## 6) Let (variable assignment)
+
+```
+let_statement = "let", identifier, "=", expression ;
+```
+
+`let` always creates a new variable in the current scope. `=` is assignment, not comparison.
+
+---
+
+## 7) Fn (function definition)
+
+```
+fn_definition = "fn", identifier, { identifier }, "do", actions, "done" ;
+```
+
+- Parameters are space-separated, no commas or parentheses
+- Return value is the last expression evaluated in the body
+- Types are dynamic
+
+---
+
+## 8) For loop
+
+```
+for_statement = "for", identifier, "in", expression, "do", actions, "done" ;
+```
+
+Iterates over a list, a string (line-split), or any iterable.
+
+---
+
+## 9) Import
+
+```
+import_statement = "import", string ;
+```
+
+Loads and executes another `.e` file. All its `fn` definitions and top-level code become available.
+
+---
+
+## 10) When (condition)
 
 ```
 when_unit = "when", condition, "do", actions, "done" ;
 
 condition = "item", ("visible" | "hidden")
           | ("number" | "count"), ("=" | ">" | "<" | ">=" | "<="), number
+          | expression
           ;
 ```
 
-📌 `item visible` / `item hidden` controlla lo stato dell'elemento corrente.
-📌 `number > 5` / `count <= 10` confronta il valore corrente con un numero.
+Conditions support both semantic keywords (`item visible`, `count > 5`) and general expressions (`result > 200`).
 
 ---
 
-## 8) Get number
+## 11) Expressions
 
 ```
-get_number_action = "get", "number", [ "from", selector ] ;
+expression = comparison ;
+
+comparison = addition, { ("=" | ">" | "<" | ">=" | "<=" | "==" | "!="), addition } ;
+
+addition = term, { ("+" | "-" | "and" | "or"), term } ;
+
+term = unary, { ("*" | "/"), unary } ;
+
+unary = [ "-" ], factor ;
+
+factor = number
+       | string
+       | list_literal
+       | "(", expression, ")"
+       | identifier, [ expression ]                  (* function call *)
+       | "run", string, [ "with", expression ]       (* shell command *)
+       | "read", string                              (* read file *)
+       | "ls", [ string ]                            (* list files *)
+       | factor, "[", expression, "]"                (* indexing *)
+       | factor, ".", identifier, [ expression ]     (* method call *)
+       ;
+
+list_literal = "[", [ expression, { ",", expression } ], "]" ;
 ```
 
-📌 Estrae un valore numerico dall'elemento corrente o da un selettore.
-📌 Il risultato viene salvato in `number`.
+Operator precedence (highest to lowest):
+
+| Level | Operators |
+|-------|-----------|
+| Unary | `-` |
+| Multiplicative | `*` `/` |
+| Additive | `+` `-` `and` `or` |
+| Comparison | `=` `>` `<` `>=` `<=` `==` `!=` |
+
+📌 `=` in expressions is always **comparison** (equals). Assignment is done via `let`.
 
 ---
 
-## 9) Find all
-
-```
-find_all_action = "find", "all", selector ;
-```
-
-📌 Trova tutti gli elementi che匹配 il selettore.
-📌 `count` = numero di elementi trovati.
-📌 `item` = la lista completa.
-
----
-
-## 10) Fallback
-
-```
-fallback = simple_fallback
-         | "do", actions, "done"
-         ;
-
-simple_fallback = log_action | stop_statement ;
-```
-
----
-
-## 8) With block (sets current object)
+## 12) Context (`with`)
 
 ```
 with_unit = "with", object, [ "{", config, "}" ], "do", actions, "done" ;
@@ -142,33 +193,34 @@ duration  = number, "s" | number, "ms" ;
 
 ---
 
-## 11) UI actions (`find` sets current element)
+## 13) UI actions
 
 ```
 ui_action = "click", [ selector ]
           | "find", selector
+          | "find", "all", selector
           ;
 
-selector  = string ;
+get_number_action = "get", "number", [ "from", selector ] ;
 ```
 
-📌 `click` without selector uses the current element set by `find`.
-📌 Error if there is neither a selector nor a current element.
+- `find` sets current element (single)
+- `find all` sets `item` to list and `count` to length
+- `get number` extracts a numeric value, sets `number` in context
 
 ---
 
-## 12) Write action
+## 14) Write
 
 ```
 write_action = "write", ( object, string | string ) ;
 ```
 
-📌 If object is missing, uses the current object (from `with`).
-📌 Error if there is no current object.
+If object is omitted, uses current object from `with file`.
 
 ---
 
-## 13) Transfer action
+## 15) Transfer
 
 ```
 transfer_action = ("email" | "upload"), "to", target, [ object ] ;
@@ -176,12 +228,12 @@ transfer_action = ("email" | "upload"), "to", target, [ object ] ;
 target = string ;
 ```
 
-📌 `to` specifies the destination.
-📌 object is optional → uses current object if omitted.
+- `to` specifies the destination
+- object is optional → uses current object from context
 
 ---
 
-## 14) Retry block
+## 16) Retry
 
 ```
 retry_unit = "retry", number, "times", "do", actions, "done" ;
@@ -189,7 +241,7 @@ retry_unit = "retry", number, "times", "do", actions, "done" ;
 
 ---
 
-## 15) Wait statement
+## 17) Wait
 
 ```
 wait_statement = "wait", "until", condition
@@ -203,7 +255,7 @@ condition    = "visible", selector
 
 ---
 
-## 16) Watch block
+## 18) Watch
 
 ```
 watch_unit = "watch", string, "do", actions, "done" ;
@@ -213,7 +265,7 @@ watch_unit = "watch", string, "do", actions, "done" ;
 
 ---
 
-## 17) Login statement
+## 19) Login
 
 ```
 login_statement = "login", string, string ;
@@ -221,47 +273,64 @@ login_statement = "login", string, string ;
 
 ---
 
-## 18) Stop statement
+## 20) Stop
 
 ```
 stop_statement = "stop" ;
 ```
 
-📌 `stop` halts the nearest enclosing `with` or `retry` block. If outside both, it halts the entire program.
+Halts the nearest enclosing `with` or `retry`. If outside both, halts the program.
 
 ---
 
-## 19) Log action
+## 21) Log
 
 ```
-log_action = "log", string ;
+log_action = "log", expression ;
 ```
+
+Accepts any expression, not just strings.
 
 ---
 
-## 20) Literals
+## 22) Fallback
+
+```
+fallback = simple_fallback
+         | "do", actions, "done"
+         ;
+
+simple_fallback = log_action | stop_statement ;
+```
+
+Every statement can have an `or` fallback.
+
+---
+
+## 23) Literals
 
 ```
 string  = '"', { character }, '"' ;
 number  = digit, { digit } ;
 digit   = "0" | "1" | ... | "9" ;
+identifier = letter, { letter | digit | "_" } ;
 ```
 
 ---
 
-## 21) Comments
+## 24) Comments
 
 ```
 comment = "//", { character }, newline ;
 ```
 
-Comments are ignored by the parser.
-
 ---
 
-## Runtime rules summary
+## Runtime variables
 
-| Concept | Set by | Used by | Error if |
-|---------|--------|---------|----------|
-| Current element | `find` | `click` without args | `click` without args and no current element |
-| Current object | `with` | `write`, `upload`, `email` without object | action needs object but no context |
+| Variable | Set by | Type | Meaning |
+|----------|--------|------|---------|
+| `item` | `find`, `find all` | Any | Current thing (element, list) |
+| `number` | `get number` | Numeric | Extracted numeric value |
+| `count` | `find all` | Numeric | Number of elements |
+| user variables | `let x = ...` | Any | Any value assigned via `let` |

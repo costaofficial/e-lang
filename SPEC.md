@@ -1,6 +1,6 @@
 # E — Language Specification
 
-> v0.5 — May 2026
+> v1.0 — May 2026
 
 ---
 
@@ -35,7 +35,7 @@ A program is a sequence of **statement units**:
 
 ```
 program    = { statement_unit } ;
-statement_unit = time_unit | script_unit ;
+statement_unit = time_unit | script_unit | fn_definition | let_statement | import_statement ;
 ```
 
 ---
@@ -139,7 +139,181 @@ done
 
 ---
 
-## 7. Actions
+## 7. Variables (`let`)
+
+**Purpose:** Store values in named variables.
+
+```
+let_statement = "let", identifier, "=", expression ;
+```
+
+**Examples:**
+
+```e
+let x = 5
+let name = "Costa"
+let result = double 42
+let list = [1, 2, 3]
+let item = list[0]
+```
+
+Variables are lexically scoped. Inner scopes (from `with`, `do`) can see outer variables.
+
+---
+
+## 8. Functions (`fn`)
+
+**Purpose:** Define reusable logic with a name and parameters.
+
+```
+fn_definition = "fn", identifier, { identifier }, "do", actions, "done" ;
+```
+
+- Parameters are space-separated, no commas or parentheses
+- Return value is the last expression evaluated
+- Types are dynamic
+
+**Examples:**
+
+```e
+fn double n do
+    n * 2
+done
+
+fn greet name do
+    "hello " + name
+done
+
+let x = double 21     // 42
+let msg = greet "E"   // "hello E"
+```
+
+Functions can be defined at the top level of a file or inside a `do` block.
+
+---
+
+## 9. Lists
+
+**Purpose:** Ordered collections of values.
+
+```
+list_literal = "[", [ expression, { ",", expression } ], "]" ;
+```
+
+**Operations:**
+
+| Operation | Example | Result |
+|-----------|---------|--------|
+| Create | `[1, 2, 3]` | New list |
+| Index | `nums[0]` | First element |
+| Append | `nums.append 4` | `[1, 2, 3, 4]` |
+
+**Examples:**
+
+```e
+let nums = [1, 2, 3]
+log nums[0]          // 1
+nums.append 4
+log nums             // [1, 2, 3, 4]
+
+for n in nums do
+    log n
+done
+```
+
+---
+
+## 10. Loops (`for`)
+
+**Purpose:** Iterate over a list or collection.
+
+```
+for_statement = "for", identifier, "in", expression, "do", actions, "done" ;
+```
+
+**Examples:**
+
+```e
+// iterate over a list
+for n in [1, 2, 3] do
+    log n
+done
+
+// iterate over files
+for f in ls "*.md" do
+    log f
+done
+
+// iterate over command output lines
+for line in run "cat file.txt" do
+    log line
+done
+```
+
+Strings are split by newlines when iterated. Lists iterate element by element.
+
+---
+
+## 11. Modules (`import`)
+
+**Purpose:** Load code from another file.
+
+```
+import_statement = "import", string ;
+```
+
+**Example:**
+
+```e
+// lib.e
+fn double n do n * 2 done
+
+// main.e
+do
+    import "lib"
+    log double 5
+done
+```
+
+Modules can define functions and variables at the top level. Functions defined in imported modules are available in the importing scope.
+
+---
+
+## 12. Expressions
+
+**Purpose:** Compute values.
+
+```
+expression = comparison ;
+
+comparison  = addition, { ("=" | ">" | "<" | ">=" | "<=" | "==" | "!="), addition } ;
+addition    = term, { ("+" | "-" | "and" | "or"), term } ;
+term        = unary, { ("*" | "/"), unary } ;
+unary       = [ "-" ], factor ;
+factor      = number | string | list_literal | "(", expression, ")"
+            | identifier, [ expression ]           (* function call *)
+            | "run", string, [ "with", expression ] (* shell command *)
+            | "read", string                        (* read file *)
+            | "ls", [ string ]                      (* list files *)
+            | factor, "[", expression, "]"           (* indexing *)
+            | factor, ".", identifier, [ expression ] (* method call *)
+            ;
+```
+
+**Operator precedence (high to low):**
+
+| Level | Operators |
+|-------|-----------|
+| Unary | `-` |
+| Multiplicative | `*` `/` |
+| Additive | `+` `-` `and` `or` |
+| Comparison | `=` `>` `<` `>=` `<=` `==` `!=` |
+
+**Note:** `=` in expressions is **comparison** (equals). Assignment is `let`.
+
+---
+
+## 14. Actions
 
 All available actions:
 
@@ -151,19 +325,30 @@ All available actions:
 | `find all` | `find all "selector"` | Finds all elements, sets `count` |
 | `get number` | `get number from "selector"` | Extracts a number, sets `number` |
 | `write` | `write file "x" "content"` | Writes to file |
-| `run` | `run "command"` | Runs shell command |
 | `login` | `login "user" "pass"` | Browser login |
 | `email` | `email to "addr" file "x"` | Sends email |
 | `upload` | `upload to "url" file "x"` | Uploads file |
 | `create` | `create "name"` | Creates file |
-| `log` | `log "message"` | Prints message |
+| `log` | `log expr` | Prints value |
 | `stop` | `stop` | Halts current unit |
 | `wait download` | `wait download` | Waits for download |
 | `wait until` | `wait until visible "sel"` | Waits for element state |
 
+**Built-in expressions (usable anywhere, not just as actions):**
+
+| Expression | What it does |
+|------------|-------------|
+| `run "cmd"` | Runs shell command, returns stdout |
+| `run "cmd" with data` | Runs shell command with stdin data |
+| `read "path"` | Reads file, returns content as string |
+| `ls "*.md"` | Lists files matching glob, newline-separated |
+| `[1, 2, 3]` | Creates a list |
+| `list[i]` | Indexes into a list |
+| `obj.method arg` | Calls a method on an object |
+
 ---
 
-## 8. Conditions (`when`)
+## 15. Conditions (`when`)
 
 **Purpose:** Execute actions only when a condition is true.
 
@@ -207,7 +392,7 @@ done
 
 ---
 
-## 9. Retry
+## 16. Retry
 
 **Purpose:** Retry a unit of actions on failure.
 
@@ -229,7 +414,7 @@ done
 
 ---
 
-## 10. Wait
+## 17. Wait
 
 **Purpose:** Wait for something to happen.
 
@@ -253,7 +438,7 @@ wait download
 
 ---
 
-## 11. Watch
+## 18. Watch
 
 **Purpose:** React to filesystem changes.
 
@@ -275,7 +460,7 @@ done
 
 ---
 
-## 12. Error handling (`or`)
+## 19. Error handling (`or`)
 
 **Purpose:** Fallback when something fails. Available on **every statement**.
 
@@ -312,7 +497,7 @@ done or log error
 
 ---
 
-## 13. Runtime architecture
+## 20. Runtime architecture
 
 ```
 E source code
@@ -337,38 +522,39 @@ Driver (interface)
 
 ---
 
-## 14. Current status
+## 21. Current status (v1.0)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Lexer + Parser | ✅ Complete | EBNF grammar, all constructs |
-| AST + dump | ✅ Complete | Typed nodes, pretty printer |
-| Dry-run mode | ✅ Complete | Logs everything, no side-effects |
-| Live mode | ✅ Complete | Actually executes |
+| Lexer + Parser | ✅ Complete | Full EBNF grammar |
+| Variables (`let`) | ✅ Complete | Lexical scope |
+| Functions (`fn`) | ✅ Complete | Implicit return, dynamic types |
+| Expressions | ✅ Complete | Operators, precedence, function calls |
+| Lists | ✅ Complete | `[1, 2, 3]`, indexing, `.append` |
+| Loops (`for`) | ✅ Complete | Over lists, strings, command output |
+| Modules (`import`) | ✅ Complete | Multi-file programs |
 | `time` scheduler | ✅ Complete | APScheduler |
-| `do` script units | ✅ Complete | Immediate execution |
+| `do` script blocks | ✅ Complete | Immediate execution |
 | `with` context | ✅ Complete | File, browser, page |
 | `find` / `click` | ✅ Complete | Playwright |
 | `find all` / `count` | ✅ Complete | Playwright |
 | `get number` | ✅ Complete | Playwright |
-| `when` conditions | ✅ Complete | `item`, `number`, `count` |
+| `when` conditions | ✅ Complete | `item`, `number`, `count`, expressions |
 | `wait visible/hidden` | ✅ Complete | Playwright |
 | `retry` | ✅ Complete | With fallback |
 | `or` fallback | ✅ Complete | Local + block |
 | `write` / `create` | ✅ Complete | Filesystem |
-| `run` | ✅ Complete | Subprocess |
+| `run` | ✅ Complete | Subprocess with capture |
+| `read` / `ls` | ✅ Complete | File reading, file listing |
 | `log`, `stop` | ✅ Complete | Built-in |
-| `login` | ⏳ Stub | Playwright auto-detect |
-| `email` | ⏳ Stub | SMTP config |
-| `wait download` | ⏳ Stub | Browser download handler |
-| `watch` | ⏳ Stub | Watchdog library |
-| Variables | ❌ Not yet | `let`, `fn`, `for` — future |
-| Types | ❌ Not yet | Future |
-| Modules | ❌ Not yet | Future |
+| `login` | ✅ Complete | Playwright auto-detect |
+| `email` | ✅ Complete | SMTP with env vars |
+| `wait download` | ✅ Complete | Playwright download handler |
+| `watch` | ✅ Complete | Watchdog library |
 
 ---
 
-## 15. Complete example
+## 22. Complete example
 
 ```e
 // Weekly report — every day at 2am
@@ -398,7 +584,7 @@ done or log error
 
 ---
 
-## 16. CLI usage
+## 23. CLI usage
 
 ```bash
 # dry-run (default, safe)
