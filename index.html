@@ -119,15 +119,15 @@ pre .s { color: #bbb; }
   <div class="sec">
     <div class="sec-hd">Try it</div>
 <pre>$ git clone https://github.com/costaofficial/e-lang.git
-$ cd e-lang
-$ python3 runtime/run_e.py examples/hello.e
+$ cd e-lang/e
+$ cargo run -- examples/hello.e
 
-<span style="color:#555;"># with a real browser</span>
-$ pip install playwright
-$ playwright install chromium
-$ python3 runtime/run_e.py --live examples/browser_demo.e</pre>
+<span style="color:#555;"># build and install globally</span>
+$ cargo build --release
+$ sudo cp target/release/e /usr/local/bin/
+$ e examples/hello.e</pre>
     <a class="btn" href="https://github.com/costaofficial/e-lang" target="_blank">View on GitHub</a>
-    <a class="btn" href="https://github.com/costaofficial/e-lang/releases" target="_blank">Download v0.4</a>
+    <a class="btn" href="https://github.com/costaofficial/e-lang/releases" target="_blank">Download v2.0</a>
   </div>
 
   <div class="ft">

@@ -599,15 +599,4 @@ e examples/hello.e
 
 No dependencies required. Single binary.
 
-### Dependencies
-
-```bash
-# Always needed: none (stdlib only)
-
-# For scheduler:
-pip install apscheduler
-
-# For browser automation:
-pip install playwright
-playwright install chromium
-```
+No dependencies. Single Rust binary.
