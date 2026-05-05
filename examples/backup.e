@@ -1,7 +1,0 @@
-// Backup every hour
-time every hour at 00 do
-    with file "backup.sql" do
-        write file "backup.sql" "full dump"
-    done
-    email to "admin@example.com" file "backup.sql"
-done or log error
