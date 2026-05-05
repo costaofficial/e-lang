@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E — automation language</title>
+<style>
+/* ── GameBoy palette ── */
+:root {
+  --bg: #9bbc0f;
+  --bg-dark: #306230;
+  --bg-darker: #0f380f;
+  --bg-light: #8bac0f;
+  --text: #0f380f;
+  --text-light: #306230;
+  --accent: #0f380f;
+  --white: #e0f8cf;
+}
+
+@font-face {
+  font-family: 'Pixel';
+  src: local('Courier New'), local('monospace');
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  line-height: 1.5;
+  image-rendering: pixelated;
+}
+
+/* ── Scanlines ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* ── Container ── */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  padding: 40px 0 20px;
+  border-bottom: 4px solid var(--bg-dark);
+  margin-bottom: 32px;
+}
+
+.logo {
+  font-size: 64px;
+  font-weight: bold;
+  color: var(--bg-darker);
+  text-shadow: 4px 4px 0 var(--bg-dark);
+  letter-spacing: 8px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.tagline {
+  font-size: 14px;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* ── Terminal ── */
+.terminal {
+  background: var(--bg-darker);
+  color: var(--bg-light);
+  border: 4px solid var(--bg-dark);
+  padding: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 32px;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+.terminal-header {
+  color: var(--white);
+  margin-bottom: 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.6;
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: var(--bg-light);
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.line { white-space: pre-wrap; min-height: 1.2em; }
+.line-new { color: var(--white); }
+.line-keyword { color: #8bac0f; font-weight: bold; }
+.line-string { color: #e0f8cf; }
+.line-comment { color: var(--text-light); font-style: italic; }
+
+/* ── Sections ── */
+.section {
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--bg-darker);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  border-bottom: 2px solid var(--bg-dark);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+/* ── Feature grid ── */
+.features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 480px) {
+  .features { grid-template-columns: 1fr; }
+}
+
+.feature {
+  border: 2px solid var(--bg-dark);
+  padding: 16px;
+  background: var(--bg-light);
+}
+
+.feature-title {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--bg-darker);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.feature-desc {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+/* ── Code block ── */
+.code-block {
+  background: var(--bg-darker);
+  color: var(--bg-light);
+  border: 4px solid var(--bg-dark);
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.code-comment { color: var(--text-light); font-style: italic; }
+.code-keyword { color: #8bac0f; font-weight: bold; }
+.code-string { color: #e0f8cf; }
+
+/* ── Button ── */
+.btn {
+  display: inline-block;
+  background: var(--bg-darker);
+  color: var(--bg-light);
+  border: none;
+  padding: 12px 28px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  text-decoration: none;
+  border: 2px solid var(--bg-dark);
+  transition: all 0.1s;
+}
+
+.btn:hover {
+  background: var(--bg-dark);
+  color: var(--white);
+}
+
+.btn-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  padding: 32px 0;
+  font-size: 11px;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-top: 2px solid var(--bg-dark);
+  margin-top: 40px;
+}
+
+.footer a {
+  color: var(--bg-darker);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* ── Separator ── */
+.separator {
+  text-align: center;
+  color: var(--bg-dark);
+  font-size: 20px;
+  letter-spacing: 8px;
+  margin: 24px 0;
+}
+
+/* ── Marquee / demo note ── */
+.note {
+  background: var(--bg-darker);
+  color: var(--bg-light);
+  padding: 12px 16px;
+  font-size: 12px;
+  margin-bottom: 32px;
+  border: 2px solid var(--bg-dark);
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ═══ Header ═══ -->
+  <div class="header">
+    <div class="logo">E</div>
+    <div class="tagline">describe actions in time</div>
+  </div>
+
+  <!-- ═══ Terminal ═══ -->
+  <div class="terminal" id="terminal">
+    <div class="terminal-header">⏵ e-lang/v0.4 — automation script</div>
+    <div id="terminal-lines"></div>
+  </div>
+
+  <!-- ═══ What ═══ -->
+  <div class="section">
+    <div class="section-title">What is E</div>
+    <p style="margin-bottom:12px; font-size:14px;">
+      E is a language that describes <strong>when</strong> to do something,
+      <strong>on what</strong>, and <strong>what to do</strong>.
+      The runtime handles retries, waits, errors — you just describe the intent.
+    </p>
+    <p style="font-size:13px; color:var(--text-light);">
+      Declarative. Event-oriented. Human-readable.
+    </p>
+  </div>
+
+  <div class="separator">◆ ◇ ◆ ◇ ◆</div>
+
+  <!-- ═══ Example ═══ -->
+  <div class="section">
+    <div class="section-title">Example</div>
+    <div class="code-block">
+<span class="code-comment">// every day at 2am — export Garmin data</span><br>
+<span class="code-keyword">time</span> every day <span class="code-keyword">at</span> 02:00 <span class="code-keyword">do</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">with</span> browser <span class="code-keyword">do</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">open</span> <span class="code-string">"https://connect.garmin.com"</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">with</span> page { timeout: 10s } <span class="code-keyword">do</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;login <span class="code-string">"user"</span> <span class="code-string">"pass"</span> <span class="code-keyword">or</span> stop<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;click <span class="code-string">"#export-all"</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wait download<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">done</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">done</span><br>
+<span class="code-keyword">done</span> <span class="code-keyword">or</span> log error<br>
+    </div>
+  </div>
+
+  <!-- ═══ Features ═══ -->
+  <div class="section">
+    <div class="section-title">Features</div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-title">⏰ Time</div>
+        <div class="feature-desc">Schedule scripts with <code>time every day at</code> — APScheduler underneath.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">🌐 Browser</div>
+        <div class="feature-desc">Automate the web: <code>open</code>, <code>find</code>, <code>click</code>, <code>wait</code> via Playwright.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">🔄 Retry</div>
+        <div class="feature-desc">Built-in <code>retry N times do ... done</code> with exponential backoff.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">⚠️ Fallback</div>
+        <div class="feature-desc">Every statement can have an <code>or</code> fallback — local or global.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">📁 Files</div>
+        <div class="feature-desc"><code>write</code>, <code>create</code>, <code>run</code> — real filesystem and subprocess.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">📧 Email</div>
+        <div class="feature-desc"><code>email to "addr" file "report.pdf"</code> — SMTP ready.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Quickstart ═══ -->
+  <div class="section">
+    <div class="section-title">Try it</div>
+    <div class="code-block" style="font-size:12px;">
+$ git clone https://github.com/costaofficial/e-lang.git<br>
+$ cd e-lang<br>
+$ python3 runtime/run_e.py examples/hello.e<br>
+<br>
+<span style="color:var(--text-light);"># with a real browser</span><br>
+$ pip install playwright<br>
+$ playwright install chromium<br>
+$ python3 runtime/run_e.py --live examples/browser_demo.e<br>
+    </div>
+    <div class="btn-group">
+      <a href="https://github.com/costaofficial/e-lang" class="btn" target="_blank">View on GitHub</a>
+      <a href="https://github.com/costaofficial/e-lang/releases" class="btn" target="_blank">Download v0.4</a>
+    </div>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="footer">
+    <a href="https://github.com/costaofficial/e-lang">e-lang</a> &nbsp;·&nbsp; Apache 2.0 &nbsp;·&nbsp; built in 2025
+  </div>
+
+</div>
+
+<script>
+// ── Terminal animation ──
+const code = [
+  { t:'comment', v:'// every day at 2am — export Garmin data' },
+  { t:'text', v:'time every day at 02:00 do' },
+  { t:'text', v:'    with browser do' },
+  { t:'text', v:'        open "https://connect.garmin.com"' },
+  { t:'text', v:'        with page { timeout: 10s } do' },
+  { t:'text', v:'            login "user" "pass" or stop' },
+  { t:'text', v:'            click "#export-all"' },
+  { t:'text', v:'            wait download' },
+  { t:'text', v:'        done' },
+  { t:'text', v:'    done' },
+  { t:'comment', v:'// any error → log and continue' },
+  { t:'text', v:'done or log error' },
+  { t:'newline' },
+  { t:'comment', v:'// output: ✅ fit imported  📧 report.pdf sent' },
+];
+
+const termLines = document.getElementById('terminal-lines');
+let lineIdx = 0;
+let charIdx = 0;
+let currentLine = null;
+
+function addChar(char, type) {
+  if (!currentLine) {
+    currentLine = document.createElement('div');
+    currentLine.className = 'line';
+    termLines.appendChild(currentLine);
+  }
+  const span = document.createElement('span');
+  if (type === 'comment') span.className = 'line-comment';
+  else if (type === 'keyword') span.className = 'line-keyword';
+  else if (type === 'string') span.className = 'line-string';
+  else span.className = 'line-new';
+  span.textContent = char;
+  currentLine.appendChild(span);
+}
+
+function nextLine() {
+  currentLine = null;
+  lineIdx++;
+  charIdx = 0;
+  setTimeout(typeChar, 40);
+}
+
+function typeChar() {
+  if (lineIdx >= code.length) return;
+
+  const entry = code[lineIdx];
+
+  if (entry.t === 'newline') {
+    nextLine();
+    return;
+  }
+
+  if (charIdx < entry.v.length) {
+    const ch = entry.v[charIdx];
+    let type = entry.t;
+    if (ch === '"') type = 'string';
+    else if ('time every at do done with or retry times wait until watch login stop write email upload click find log file browser page app visible hidden download to s ms timeout'.split(' ').includes(entry.v.slice(charIdx).split(/[ "]/)[0]) && charIdx === 0) {
+      // simplistic keyword detection
+    }
+    addChar(ch, type);
+    charIdx++;
+    const delay = entry.t === 'comment' ? 4 : (Math.random() * 20 + 10);
+    setTimeout(typeChar, delay);
+  } else {
+    if (lineIdx === 4) {
+      // highlight keywords on the login line
+    }
+    setTimeout(nextLine, 200);
+  }
+}
+
+setTimeout(typeChar, 400);
+
+// ── Retro cursor blink ──
+setInterval(() => {
+  const cursor = document.querySelector('.cursor') || (() => {
+    const c = document.createElement('span');
+    c.className = 'cursor';
+    document.getElementById('terminal-lines').appendChild(c);
+    return c;
+  })();
+  cursor.style.display = cursor.style.display === 'none' ? 'inline-block' : 'none';
+}, 500);
+</script>
+
+</body>
+</html>
