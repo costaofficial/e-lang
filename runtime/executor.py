@@ -8,7 +8,8 @@ from .drivers.real import RealDriver
 from parser.parser_e import (
     Program, TimeUnit, ScriptUnit, Schedule,
     WithUnit, ObjectRef, RetryUnit, WatchUnit, WhenUnit, Action,
-    LetStatement, FnDefinition, Expr, dump_expr,
+    LetStatement, FnDefinition, ForStatement, ImportStatement,
+    Expr, dump_expr,
 )
 
 
@@ -74,6 +75,12 @@ class Executor:
         elif isinstance(node, FnDefinition):
             self.ctx.scope.def_fn(node.name, node)
             self.driver.log(f"  📦 fn {node.name}({', '.join(node.params)})", node.line)
+
+        elif isinstance(node, ForStatement):
+            self._exec_for(node)
+
+        elif isinstance(node, ImportStatement):
+            self._exec_import(node)
 
         elif isinstance(node, Expr):
             result = self._eval_expr(node)
@@ -287,6 +294,23 @@ class Executor:
             files = [str(p) for p in sorted(Path().glob(pattern)) if p.is_file()]
             return '\n'.join(files)
 
+        elif expr.kind == 'list':
+            return [self._eval_expr(item) for item in expr.value]
+
+        elif expr.kind == 'index':
+            container = self._eval_expr(expr.left)
+            idx = self._eval_expr(expr.right)
+            return container[idx]
+
+        elif expr.kind == 'method':
+            obj = self._eval_expr(expr.left)
+            method = expr.value
+            args = [self._eval_expr(a) for a in expr.args]
+            if method == 'append' and isinstance(obj, list):
+                obj.append(args[0])
+                return obj
+            raise EError(f"unknown method '{method}'", expr.line)
+
         elif expr.kind == 'var':
             try:
                 return self.ctx.scope.get_var(expr.value)
@@ -358,6 +382,43 @@ class Executor:
                 raise EError(f"unknown operator '{op}'", expr.line)
 
         return None
+
+    # ── For loop ──
+
+    def _exec_for(self, node: ForStatement):
+        collection = self._eval_expr(node.collection)
+        if isinstance(collection, str):
+            collection = collection.split('\n')
+        if not isinstance(collection, (list, tuple)):
+            collection = [collection]
+
+        for item in collection:
+            if self.ctx.should_stop:
+                break
+            self.ctx.scope.def_var(node.var, item)
+            for action in node.body:
+                if self.ctx.should_stop:
+                    break
+                self._safe(action, node.fallback)
+
+    # ── Import ──
+
+    def _exec_import(self, node: ImportStatement):
+        path = node.path
+        if not path.endswith('.e'):
+            path += '.e'
+        try:
+            with open(path) as f:
+                source = f.read()
+        except FileNotFoundError:
+            raise EError(f"module not found: '{path}'", node.line)
+        from parser.parser_e import lex, Parser
+        tokens = lex(source)
+        parser = Parser(tokens)
+        module_ast = parser.parse()
+        # Execute all script blocks in the module (top-level code + function defs)
+        for block in module_ast.blocks:
+            self._run(block)
 
     def _exec_action_list_safe(self, actions):
         """Execute actions, propagating only errors without local fallback."""

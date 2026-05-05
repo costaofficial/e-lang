@@ -1,4 +1,4 @@
-// Garmin Connect — import last 30 activities
+// connect.g — import last 30 activities
 time every week at 03:00 do
     with browser do
         open "https://connect.g.com"

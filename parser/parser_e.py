@@ -97,6 +97,19 @@ class FnDefinition:
     line: int = 0
 
 @dataclass
+class ForStatement:
+    var: str
+    collection: 'Expr'
+    body: list
+    fallback: Optional = None
+    line: int = 0
+
+@dataclass
+class ImportStatement:
+    path: str
+    line: int = 0
+
+@dataclass
 class Expr:
     kind: str   # 'num' | 'str' | 'var' | 'call' | 'bin'
     value: any = None
@@ -121,6 +134,7 @@ KEYWORDS = {
     's', 'ms', 'timeout',
     'when', 'all', 'get', 'from', 'number', 'item', 'count',
     'let', 'fn', 'run', 'read', 'ls',
+    'for', 'in', 'import', 'append',
 }
 
 TOKEN_SPEC = [
@@ -128,7 +142,10 @@ TOKEN_SPEC = [
     ('STRING',    r'"[^"]*"'),
     ('NUMBER',    r'\d+'),
     ('IDENT',     r'[a-zA-Z_][a-zA-Z0-9_]*'),
-    ('OP',        r'>=|<=|>|<|==|!=|=|\+|\-|\*|/'),
+    ('OP',        r'>=|<=|>|<|==|!=|=|\+|\-|\*|/|\.'),
+    ('LBRACKET',  r'\['),
+    ('RBRACKET',  r'\]'),
+    ('COMMA',     r','),
     ('LBRACE',    r'\{'),
     ('RBRACE',    r'\}'),
     ('COLON',     r':'),
@@ -225,6 +242,12 @@ class Parser:
             return self.parse_time_block()
         elif t.value == 'do':
             return self.parse_script_block()
+        elif t.value == 'fn':
+            return self.parse_fn()
+        elif t.value == 'let':
+            return self.parse_let()
+        elif t.value == 'import':
+            return self.parse_import()
         raise ParseError(f"line {t.line}: expected 'time' or 'do', got '{t.value}'")
 
     def parse_time_block(self):
@@ -323,7 +346,12 @@ class Parser:
             return self.parse_let()
         elif t.value == 'fn':
             return self.parse_fn()
-        elif t.kind == 'IDENT':
+        elif t.value == 'for':
+            return self.parse_for()
+        elif t.value == 'import':
+            return self.parse_import()
+        elif t.kind in ('IDENT', 'NUMBER', 'STRING', 'LBRACKET') or \
+             (t.kind == 'KEYWORD' and t.value in ('number', 'count', 'item', 'run', 'read', 'ls')):
             return self.parse_expr_stmt()
         raise ParseError(f"line {t.line}: unknown action '{t.value}'")
 
@@ -544,14 +572,15 @@ class Parser:
     def parse_factor(self):
         t = self.peek()
         line = t.line
+        result = None
 
         if t.kind == 'NUMBER':
             self.pop()
-            return Expr('num', int(t.value), line=line)
+            result = Expr('num', int(t.value), line=line)
 
         elif t.kind == 'STRING':
             self.pop()
-            return Expr('str', t.value.strip('"'), line=line)
+            result = Expr('str', t.value.strip('"'), line=line)
 
         elif t.value == 'run':
             self.pop()
@@ -560,48 +589,106 @@ class Parser:
             if self.peek().value == 'with':
                 self.pop()
                 stdin_expr = self.parse_expr()
-            args = [stdin_expr] if stdin_expr else []
-            return Expr('run', cmd, args=args, line=line)
+            result = Expr('run', cmd, args=[stdin_expr] if stdin_expr else [], line=line)
+
+        elif t.kind == 'LBRACKET':
+            self.pop()
+            items = []
+            if self.peek().kind != 'RBRACKET':
+                items.append(self.parse_expr())
+                while self.peek().kind == 'COMMA':
+                    self.pop()
+                    items.append(self.parse_expr())
+            self.expect('RBRACKET', ']')
+            result = Expr('list', items, line=line)
 
         elif t.value == 'read':
             self.pop()
             path = self.expect('STRING').value.strip('"')
-            return Expr('read', path, line=line)
+            result = Expr('read', path, line=line)
 
         elif t.value == 'ls':
             self.pop()
             pattern = '*'
             if self.peek().kind == 'STRING':
                 pattern = self.pop().value.strip('"')
-            return Expr('ls', pattern, line=line)
+            result = Expr('ls', pattern, line=line)
 
         elif t.kind == 'IDENT' or (t.kind == 'KEYWORD' and t.value in ('number', 'count', 'item')):
             self.pop()
             name = t.value
-            # Check if this is a function call (next token is an expression start)
-            if self.peek().kind in ('NUMBER', 'STRING', 'IDENT') or \
+            # If next is '[', this is indexing, not a function call
+            if self.peek().kind == 'LBRACKET':
+                result = Expr('var', name, line=line)
+            elif self.peek().kind in ('NUMBER', 'STRING', 'IDENT', 'LBRACKET') or \
                (self.peek().kind == 'KEYWORD' and self.peek().value in ('number', 'count', 'item')) or \
                (self.peek().kind == 'OP' and self.peek().value == '-'):
                 args = [self.parse_expr()]
-                return Expr('call', name, args=args, line=line)
-            # Could be multiple args: after first expr, check for more
-            return Expr('var', name, line=line)
+                result = Expr('call', name, args=args, line=line)
+            else:
+                result = Expr('var', name, line=line)
 
         elif t.kind == 'OP' and t.value == '(':
             self.pop()
-            expr = self.parse_expr()
+            result = self.parse_expr()
             self.expect('OP', ')')
-            return expr
 
-        elif self.peek().kind == 'OP' and self.peek().value == '-':
-            return self.parse_unary()
+        else:
+            raise ParseError(f"line {t.line}: unexpected token '{t.value}' in expression")
 
-        raise ParseError(f"line {t.line}: unexpected token '{t.value}' in expression")
+        # Postfix: indexing [n] and method calls .method
+        while result is not None:
+            if self.peek().kind == 'LBRACKET':
+                self.pop()
+                index = self.parse_expr()
+                self.expect('RBRACKET', ']')
+                result = Expr('index', left=result, right=index, line=line)
+            elif self.peek().kind == 'OP' and self.peek().value == '.':
+                self.pop()
+                t = self.pop()
+                if t.kind not in ('IDENT', 'KEYWORD'):
+                    raise ParseError(f"line {t.line}: expected method name, got '{t.value}'")
+                method = t.value
+                args = []
+                if self.peek().kind == 'LBRACKET':
+                    self.pop()
+                    if self.peek().kind != 'RBRACKET':
+                        args.append(self.parse_expr())
+                        while self.peek().kind == 'COMMA':
+                            self.pop()
+                            args.append(self.parse_expr())
+                    self.expect('RBRACKET', ']')
+                elif self.peek().kind in ('NUMBER', 'STRING', 'IDENT', 'LBRACKET') or \
+                     (self.peek().kind == 'KEYWORD' and self.peek().value in ('number', 'count', 'item', 'run', 'read', 'ls')):
+                    args.append(self.parse_expr())
+                result = Expr('method', value=method, left=result, args=args, line=line)
+            else:
+                break
+
+        return result
+
+    def parse_for(self):
+        line = self.pop().line  # 'for'
+        t = self.pop()
+        if t.kind not in ('IDENT', 'KEYWORD'):
+            raise ParseError(f"line {t.line}: expected variable name, got '{t.value}'")
+        var = t.value
+        self.expect('KEYWORD', 'in')
+        collection = self.parse_expr()
+        self.skip_newlines()
+        self.expect('KEYWORD', 'do')
+        actions = self.parse_actions()
+        self.expect('KEYWORD', 'done')
+        return ForStatement(var, collection, actions, line=line)
+
+    def parse_import(self):
+        line = self.pop().line  # 'import'
+        path = self.expect('STRING').value.strip('"')
+        return ImportStatement(path, line=line)
 
     def parse_log_action(self):
         line = self.pop().line
         expr = self.parse_expr()
-        # For backward compatibility, if it's a simple string or ident, pass directly
         if expr.kind == 'str':
             return Action('log', [expr.value], line=line)
         return Action('log_expr', [expr], line=line)
@@ -644,6 +731,12 @@ def dump_expr(e: Expr) -> str:
         return f"read({e.value})"
     elif e.kind == 'ls':
         return f"ls({e.value})"
+    elif e.kind == 'list':
+        return '[' + ', '.join(dump_expr(x) for x in e.value) + ']'
+    elif e.kind == 'index':
+        return f"{dump_expr(e.left)}[{dump_expr(e.right)}]"
+    elif e.kind == 'method':
+        return f"{dump_expr(e.left)}.{e.value}({', '.join(dump_expr(a) for a in e.args)})"
     return '?'
 
 
@@ -709,6 +802,12 @@ def dump(node, indent=0):
         print(f"{pad}Fn({node.name}({', '.join(node.params)})) [line {node.line}]")
         for a in node.body:
             dump(a, indent + 1)
+    elif isinstance(node, ForStatement):
+        print(f"{pad}For({node.var} in {dump_expr(node.collection)}) [line {node.line}]")
+        for a in node.body:
+            dump(a, indent + 1)
+    elif isinstance(node, ImportStatement):
+        print(f"{pad}Import('{node.path}') [line {node.line}]")
     elif isinstance(node, Expr):
         print(f"{pad}{dump_expr(node)} [line {node.line}]")
     elif isinstance(node, Action):
