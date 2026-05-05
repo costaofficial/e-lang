@@ -111,7 +111,8 @@ class RealDriver(Driver):
         try:
             from ..drivers.browser import BrowserDriver
             self._browser = BrowserDriver()
-            self._browser.start()
+            dl_dir = os.path.join(os.getcwd(), "downloads")
+            self._browser.start(download_dir=dl_dir)
             self.log("  ✅ Browser started", line)
         except RuntimeError as e:
             self.log(f"  ⚠️ {e}", line)
@@ -193,7 +194,16 @@ class RealDriver(Driver):
 
     def email(self, to: str, attachment: Optional[str], line: int):
         info = f" (attach: {attachment})" if attachment else ""
-        self.log(f"  📧 email to '{to}'{info} (NOT IMPLEMENTED — configure SMTP env vars)", line)
+        self.log(f"  📧 email to '{to}'{info}", line)
+        try:
+            from ..drivers.mail import send_email
+            subject = "E — automated message"
+            body = f"Sent by E at {time.strftime('%Y-%m-%d %H:%M:%S')}"
+            send_email(to, subject, body, attachment)
+            self.log(f"  ✅ email sent", line)
+        except Exception as e:
+            self.log(f"  ⚠️ email failed: {e}", line)
+            self.log(f"  💡 Set E_SMTP_HOST, E_SMTP_USER, E_SMTP_PASS env vars", line)
 
     def upload(self, url: str, file: Optional[str], line: int):
         info = f" ({file})" if file else ""
@@ -202,91 +212,30 @@ class RealDriver(Driver):
     # ── Auth ──
 
     def login(self, user: str, password: str, line: int):
-        self.log(f"  🔐 login '{user}' / '{'*' * len(password)}' (NOT IMPLEMENTED — install Playwright)", line)
-
-    # ── Semantic actions ──
-
-    def get_number(self, selector, ctx, line: int):
-        if not selector and ctx.current_item:
-            # use current_item as text source
-            self.log(f"  🔢 get number from current item", line)
-            return
-        if self._browser and self._browser.is_running and selector:
-            try:
-                text = self._browser.page.locator(selector).text_content(timeout=5000)
-                if text:
-                    import re
-                    nums = re.findall(r'[\d.]+', text)
-                    if nums:
-                        ctx.current_number = float(nums[0].replace(',', ''))
-                        self.log(f"  🔢 got number: {ctx.current_number}", line)
-                        return
-            except Exception as e:
-                self.log(f"  ⚠️ get number failed: {e}", line)
-                return
-        self.log(f"  🔢 get number" + (f" from '{selector}'" if selector else "") + " (simulated)", line)
-        ctx.current_number = 42
-
-    def find_all(self, selector, ctx, line: int):
         if self._browser and self._browser.is_running:
             try:
-                elements = self._browser.page.locator(selector).all()
-                ctx.current_count = len(elements)
-                ctx.current_item = elements
-                self.log(f"  🔍 find all '{selector}' → {ctx.current_count} elements", line)
+                self._browser.login(user, password)
+                self.log(f"  🔐 logged in as '{user}'", line)
                 return
             except Exception as e:
-                self.log(f"  ⚠️ find all failed: {e}", line)
+                self.log(f"  ⚠️ login failed: {e}", line)
                 return
-        self.log(f"  🔍 find all '{selector}' (simulated)", line)
-        ctx.current_count = 3
-        ctx.current_item = []
-
-    def evaluate_condition(self, condition, ctx, line: int) -> bool:
-        cond_type = condition.get('type')
-        target = condition.get('target')
-        if cond_type == 'item_visible':
-            if self._browser and self._browser.is_running and ctx.current_item:
-                try:
-                    self._browser.wait_until('visible', ctx.current_item if isinstance(ctx.current_item, str) else '')
-                    self.log(f"  ✅ item visible", line)
-                    return True
-                except:
-                    self.log(f"  ❌ item not visible", line)
-                    return False
-            self.log(f"  ✅ item visible (simulated)", line)
-            return True
-        elif cond_type == 'item_hidden':
-            self.log(f"  ❌ item hidden (simulated)", line)
-            return False
-        elif cond_type == 'compare':
-            actual = ctx.current_number if target == 'number' else ctx.current_count
-            op = condition['operator']
-            val = condition['value']
-            results = {
-                '=': actual == val,
-                '>': actual > val,
-                '<': actual < val,
-                '>=': actual >= val,
-                '<=': actual <= val,
-            }
-            r = results.get(op, False)
-            self.log(f"  📊 {target} {op} {val}? (actual: {actual}) → {r}", line)
-            return r
-        return False
-
-    # ── Browser config ──
-
-    def set_page_timeout(self, ms: int, line: int):
-        if self._browser:
-            self._browser.set_page_timeout(ms)
-            self.log(f"  ⏱️ page timeout set to {ms}ms", line)
+        self.log(f"  🔐 login '{user}' / '{'*' * len(password)}' (simulated)", line)
 
     # ── Wait ──
 
     def wait_download(self, line: int):
-        self.log(f"  ⏳ wait download...", line)
-        time.sleep(2)
+        if self._browser and self._browser.is_running:
+            try:
+                self._browser.wait_download()
+                path = self._browser.last_download
+                self.log(f"  ⏳ wait download... ✅ '{path}'", line)
+                return
+            except Exception as e:
+                self.log(f"  ⚠️ download failed: {e}", line)
+                return
+        self.log(f"  ⏳ wait download... (simulated)", line)
+        time.sleep(1)
         self.log(f"  ✅ download complete (simulated)", line)
 
     def wait_until(self, condition: str, selector: str, line: int):

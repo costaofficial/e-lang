@@ -21,6 +21,7 @@ class Executor:
     def __init__(self, driver: Driver = None, live=False):
         self.driver = driver or (RealDriver() if live else DryDriver())
         self.ctx = RuntimeContext()
+        self._watchers = []
 
     def run(self, node):
         self.driver.setup()
@@ -29,6 +30,11 @@ class Executor:
             if self.ctx.should_stop:
                 self.driver.log("🛑 Execution stopped", 0)
         finally:
+            for w in self._watchers:
+                try:
+                    w.stop()
+                except:
+                    pass
             self.driver.teardown()
 
     def _run(self, node):
@@ -163,11 +169,49 @@ class Executor:
             raise EError(f"retry {node.times}x exhausted", node.line)
 
     def _exec_watch_block(self, node: WatchUnit):
-        self.driver.log(f"👀 Watch: '{node.path}' (simulated — running once)", node.line)
-        for action in node.actions:
-            if self.ctx.should_stop:
-                break
-            self._safe(action, node.fallback)
+        path = node.path
+        self.driver.log(f"👀 Watch: '{path}'", node.line)
+
+        try:
+            from watchdog.observers import Observer
+            from watchdog.events import FileSystemEventHandler
+
+            class Handler(FileSystemEventHandler):
+                def __init__(self, exe, acts, fb, ln):
+                    self.exe = exe
+                    self.acts = acts
+                    self.fb = fb
+                    self.ln = ln
+                def on_created(self, event):
+                    if event.is_directory:
+                        return
+                    self.exe.driver.log(f"  📄 new: {event.src_path}", self.ln)
+                    for a in self.acts:
+                        if self.exe.ctx.should_stop:
+                            break
+                        self.exe._safe(a, self.fb)
+                def on_modified(self, event):
+                    if event.is_directory:
+                        return
+                    for a in self.acts:
+                        if self.exe.ctx.should_stop:
+                            break
+                        self.exe._safe(a, self.fb)
+
+            observer = Observer()
+            observer.schedule(Handler(self, node.actions, node.fallback, node.line), path)
+            observer.start()
+            self._watchers.append(observer)
+            self.driver.log(f"  ✅ watching '{path}'", node.line)
+
+        except ImportError:
+            self.driver.log(f"  ⚠️ watchdog not installed — running once", node.line)
+            for action in node.actions:
+                if self.ctx.should_stop:
+                    break
+                self._safe(action, node.fallback)
+        except Exception as e:
+            self.driver.log(f"  ⚠️ watch failed: {e}", node.line)
 
     @staticmethod
     def _parse_timeout(config: str) -> int:
