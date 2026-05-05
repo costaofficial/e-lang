@@ -120,7 +120,7 @@ KEYWORDS = {
     'visible', 'hidden', 'download', 'to',
     's', 'ms', 'timeout',
     'when', 'all', 'get', 'from', 'number', 'item', 'count',
-    'let', 'fn',
+    'let', 'fn', 'run', 'read', 'ls',
 }
 
 TOKEN_SPEC = [
@@ -553,6 +553,28 @@ class Parser:
             self.pop()
             return Expr('str', t.value.strip('"'), line=line)
 
+        elif t.value == 'run':
+            self.pop()
+            cmd = self.expect('STRING').value.strip('"')
+            stdin_expr = None
+            if self.peek().value == 'with':
+                self.pop()
+                stdin_expr = self.parse_expr()
+            args = [stdin_expr] if stdin_expr else []
+            return Expr('run', cmd, args=args, line=line)
+
+        elif t.value == 'read':
+            self.pop()
+            path = self.expect('STRING').value.strip('"')
+            return Expr('read', path, line=line)
+
+        elif t.value == 'ls':
+            self.pop()
+            pattern = '*'
+            if self.peek().kind == 'STRING':
+                pattern = self.pop().value.strip('"')
+            return Expr('ls', pattern, line=line)
+
         elif t.kind == 'IDENT' or (t.kind == 'KEYWORD' and t.value in ('number', 'count', 'item')):
             self.pop()
             name = t.value
@@ -616,6 +638,12 @@ def dump_expr(e: Expr) -> str:
         return f"{e.value}({', '.join(dump_expr(a) for a in e.args)})"
     elif e.kind == 'bin':
         return f"({dump_expr(e.left)} {e.op} {dump_expr(e.right)})"
+    elif e.kind == 'run':
+        return f"run({e.value})"
+    elif e.kind == 'read':
+        return f"read({e.value})"
+    elif e.kind == 'ls':
+        return f"ls({e.value})"
     return '?'
 
 

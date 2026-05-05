@@ -262,6 +262,31 @@ class Executor:
             return expr.value
         elif expr.kind == 'str':
             return expr.value
+        elif expr.kind == 'run':
+            import subprocess
+            cmd = expr.value
+            stdin_data = None
+            if expr.args and expr.args[0] is not None:
+                stdin_val = self._eval_expr(expr.args[0])
+                stdin_data = str(stdin_val) if stdin_val else None
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                                     input=stdin_data)
+            return result.stdout.rstrip('\n')
+
+        elif expr.kind == 'read':
+            path = expr.value
+            try:
+                with open(path) as f:
+                    return f.read()
+            except Exception as e:
+                raise EError(f"cannot read '{path}': {e}", expr.line)
+
+        elif expr.kind == 'ls':
+            from pathlib import Path
+            pattern = expr.value
+            files = [str(p) for p in sorted(Path().glob(pattern)) if p.is_file()]
+            return '\n'.join(files)
+
         elif expr.kind == 'var':
             try:
                 return self.ctx.scope.get_var(expr.value)
@@ -426,7 +451,10 @@ class Executor:
         self.driver.wait_until(cond, sel, node.line)
 
     def _action_run(self, node: Action):
-        self.driver.run(node.args[0], node.line)
+        out = self._eval_expr(Expr('run', node.args[0], line=node.line))
+        if out:
+            for line_out in out.split('\n'):
+                self.driver.log(f"  {line_out}", node.line)
 
     def _action_create(self, node: Action):
         self.driver.create(node.args[0], node.line)

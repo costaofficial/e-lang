@@ -1,0 +1,23 @@
+// E as a better bash — demo
+do
+    // commands with output capture
+    let user = run "whoami"
+    let date = run "date"
+    log "user: " + user + " at " + date
+
+    // list files
+    let files = ls "*.md"
+    log files
+
+    // read a file
+    let readme = read "README.md"
+    when run "test -f LICENSE && echo ok" == "ok" do
+        log "LICENSE exists"
+    done
+
+    // chain commands
+    run "echo 'created with E' > demo_test.txt"
+    let content = read "demo_test.txt"
+    log content
+    run "rm demo_test.txt"
+done
