@@ -7,7 +7,7 @@
 ```
 program    = { statement_unit } ;
 
-statement_unit = time_unit | script_unit | fn_definition | let_statement | import_statement ;
+statement_unit = time_unit | script_unit | fn_definition | let_statement | use_statement ;
 ```
 
 Top-level can be `time`, `do`, `fn`, `let`, or `import`.
@@ -71,7 +71,7 @@ core_statement =
     | let_statement
     | fn_definition
     | for_statement
-    | import_statement
+    | use_statement
     | expression
     ;
 ```
@@ -113,7 +113,7 @@ Iterates over a list, a string (line-split), or any iterable.
 ## 9) Import
 
 ```
-import_statement = "import", string ;
+use_statement = "use", string ;
 ```
 
 Loads and executes another `.e` file. All its `fn` definitions and top-level code become available.

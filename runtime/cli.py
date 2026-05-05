@@ -1,12 +1,10 @@
 """
-E — general-purpose language
-=============================
-CLI entry point.
+E — CLI entry point
+====================
 
 Usage:
-    python3 runtime/run_e.py script.e                 # dry-run
-    python3 runtime/run_e.py --live script.e          # live execution
-    python3 runtime/run_e.py --live --watch script.e  # keep alive for scheduler
+    python3 runtime/cli.py script.e                  # dry-run
+    python3 runtime/cli.py --live script.e           # live execution
 """
 
 import sys
@@ -19,7 +17,7 @@ if __name__ == '__main__' or not __package__:
     if root not in sys.path:
         sys.path.insert(0, root)
 
-from parser.parser_e import lex, Parser, ParseError
+from parser.main import lex, Parser, ParseError
 from runtime.executor import Executor, EError
 
 

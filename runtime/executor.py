@@ -5,10 +5,10 @@ E — Executor: walks AST, calls driver, handles context/retry/fallback
 from .context import RuntimeContext
 from .drivers.base import Driver, DryDriver
 from .drivers.real import RealDriver
-from parser.parser_e import (
-    Program, TimeUnit, ScriptUnit, Schedule,
-    WithUnit, ObjectRef, RetryUnit, WatchUnit, WhenUnit, Action,
-    LetStatement, FnDefinition, ForStatement, ImportStatement,
+from parser.main import (
+    Program, TimeNode, ScriptNode, Schedule,
+    WithNode, ObjectRef, RetryNode, WatchNode, WhenNode, Action,
+    LetStatement, FnDefinition, ForStatement, UseStatement,
     Expr, dump_expr,
 )
 
@@ -46,22 +46,22 @@ class Executor:
                     break
                 self._run(block)
 
-        elif isinstance(node, TimeUnit):
+        elif isinstance(node, TimeNode):
             self._exec_time_block(node)
 
-        elif isinstance(node, ScriptUnit):
+        elif isinstance(node, ScriptNode):
             self._exec_script_block(node)
 
-        elif isinstance(node, WithUnit):
+        elif isinstance(node, WithNode):
             self._exec_with_block(node)
 
-        elif isinstance(node, RetryUnit):
+        elif isinstance(node, RetryNode):
             self._exec_retry_block(node)
 
-        elif isinstance(node, WatchUnit):
+        elif isinstance(node, WatchNode):
             self._exec_watch_block(node)
 
-        elif isinstance(node, WhenUnit):
+        elif isinstance(node, WhenNode):
             self._exec_when_block(node)
 
         elif isinstance(node, Action):
@@ -79,7 +79,7 @@ class Executor:
         elif isinstance(node, ForStatement):
             self._exec_for(node)
 
-        elif isinstance(node, ImportStatement):
+        elif isinstance(node, UseStatement):
             self._exec_import(node)
 
         elif isinstance(node, Expr):
@@ -117,7 +117,7 @@ class Executor:
 
     # ── Block executors ──
 
-    def _exec_time_block(self, node: TimeUnit):
+    def _exec_time_block(self, node: TimeNode):
         sched = node.schedule
         info = {
             'kind': sched.kind,
@@ -133,7 +133,7 @@ class Executor:
 
         self.driver.schedule_time_block(info, actions_fn, node.line)
 
-    def _exec_script_block(self, node: ScriptUnit):
+    def _exec_script_block(self, node: ScriptNode):
         def actions_fn():
             for action in node.actions:
                 if self.ctx.should_stop:
@@ -142,7 +142,7 @@ class Executor:
 
         self.driver.run_script_block(actions_fn, node.line)
 
-    def _exec_with_block(self, node: WithUnit):
+    def _exec_with_block(self, node: WithNode):
         self.ctx.push_object(node.object)
         try:
             if node.object.kind == 'file':
@@ -167,7 +167,7 @@ class Executor:
                 self.driver.browser_stop(node.line)
             self.ctx.pop_object()
 
-    def _exec_retry_block(self, node: RetryUnit):
+    def _exec_retry_block(self, node: RetryNode):
         last_error = None
         for attempt in range(1, node.times + 1):
             if self.ctx.should_stop:
@@ -191,7 +191,7 @@ class Executor:
         elif last_error:
             raise EError(f"retry {node.times}x exhausted", node.line)
 
-    def _exec_watch_block(self, node: WatchUnit):
+    def _exec_watch_block(self, node: WatchNode):
         path = node.path
         self.driver.log(f"👀 Watch: '{path}'", node.line)
 
@@ -244,7 +244,7 @@ class Executor:
             return int(config[:-1]) * 1000
         return int(config) * 1000
 
-    def _exec_when_block(self, node: WhenUnit):
+    def _exec_when_block(self, node: WhenNode):
         cond = node.condition
         if cond.get('type') == 'expr':
             # General expression condition
@@ -403,7 +403,7 @@ class Executor:
 
     # ── Import ──
 
-    def _exec_import(self, node: ImportStatement):
+    def _exec_import(self, node: UseStatement):
         path = node.path
         if not path.endswith('.e'):
             path += '.e'
@@ -412,7 +412,7 @@ class Executor:
                 source = f.read()
         except FileNotFoundError:
             raise EError(f"module not found: '{path}'", node.line)
-        from parser.parser_e import lex, Parser
+        from parser.main import lex, Parser
         tokens = lex(source)
         parser = Parser(tokens)
         module_ast = parser.parse()

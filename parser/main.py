@@ -1,10 +1,10 @@
 """
-E parser — general-purpose language
-=====================================
+E parser
+=========
 Lexer + Recursive Descent Parser → AST
 
 Usage:
-    python3 parser/parser_e.py script.e
+    python3 parser/main.py script.e
 """
 
 import sys
@@ -22,14 +22,14 @@ class Program:
     blocks: list
 
 @dataclass
-class TimeUnit:
+class TimeNode:
     schedule: 'Schedule'
     actions: list
     fallback: Optional = None
     line: int = 0
 
 @dataclass
-class ScriptUnit:
+class ScriptNode:
     actions: list
     fallback: Optional = None
     line: int = 0
@@ -42,7 +42,7 @@ class Schedule:
     line: int = 0
 
 @dataclass
-class WithUnit:
+class WithNode:
     object: 'ObjectRef'
     config: Optional = None
     actions: list = field(default_factory=list)
@@ -56,21 +56,21 @@ class ObjectRef:
     line: int = 0
 
 @dataclass
-class RetryUnit:
+class RetryNode:
     times: int
     actions: list
     fallback: Optional = None
     line: int = 0
 
 @dataclass
-class WatchUnit:
+class WatchNode:
     path: str
     actions: list
     fallback: Optional = None
     line: int = 0
 
 @dataclass
-class WhenUnit:
+class WhenNode:
     condition: dict
     actions: list
     fallback: Optional = None
@@ -105,7 +105,7 @@ class ForStatement:
     line: int = 0
 
 @dataclass
-class ImportStatement:
+class UseStatement:
     path: str
     line: int = 0
 
@@ -134,7 +134,7 @@ KEYWORDS = {
     's', 'ms', 'timeout',
     'when', 'all', 'get', 'from', 'number', 'item', 'count',
     'let', 'fn', 'run', 'read', 'ls',
-    'for', 'in', 'import', 'append',
+    'for', 'in', 'use', 'append',
 }
 
 TOKEN_SPEC = [
@@ -246,8 +246,8 @@ class Parser:
             return self.parse_fn()
         elif t.value == 'let':
             return self.parse_let()
-        elif t.value == 'import':
-            return self.parse_import()
+        elif t.value == 'use':
+            return self.parse_use()
         raise ParseError(f"line {t.line}: expected 'time' or 'do', got '{t.value}'")
 
     def parse_time_block(self):
@@ -257,7 +257,7 @@ class Parser:
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
         fallback = self.parse_optional_fallback()
-        return TimeUnit(sched, actions, fallback, line=line)
+        return TimeNode(sched, actions, fallback, line=line)
 
     def parse_schedule(self):
         t = self.peek()
@@ -289,7 +289,7 @@ class Parser:
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
         fallback = self.parse_optional_fallback()
-        return ScriptUnit(actions, fallback, line=line)
+        return ScriptNode(actions, fallback, line=line)
 
     def parse_actions(self):
         actions = []
@@ -348,8 +348,8 @@ class Parser:
             return self.parse_fn()
         elif t.value == 'for':
             return self.parse_for()
-        elif t.value == 'import':
-            return self.parse_import()
+        elif t.value == 'use':
+            return self.parse_use()
         elif t.kind in ('IDENT', 'NUMBER', 'STRING', 'LBRACKET') or \
              (t.kind == 'KEYWORD' and t.value in ('number', 'count', 'item', 'run', 'read', 'ls')):
             return self.parse_expr_stmt()
@@ -383,7 +383,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return WithUnit(obj, config, actions, line=line)
+        return WithNode(obj, config, actions, line=line)
 
     def parse_object(self):
         t = self.pop()
@@ -401,7 +401,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return RetryUnit(n, actions, line=line)
+        return RetryNode(n, actions, line=line)
 
     def parse_watch_block(self):
         line = self.pop().line
@@ -409,7 +409,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return WatchUnit(path, actions, line=line)
+        return WatchNode(path, actions, line=line)
 
     def parse_wait_statement(self):
         line = self.pop().line
@@ -470,7 +470,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return WhenUnit(cond, actions, line=line)
+        return WhenNode(cond, actions, line=line)
 
     def parse_condition(self):
         t = self.peek()
@@ -681,10 +681,10 @@ class Parser:
         self.expect('KEYWORD', 'done')
         return ForStatement(var, collection, actions, line=line)
 
-    def parse_import(self):
-        line = self.pop().line  # 'import'
+    def parse_use(self):
+        line = self.pop().line  # .use.
         path = self.expect('STRING').value.strip('"')
-        return ImportStatement(path, line=line)
+        return UseStatement(path, line=line)
 
     def parse_log_action(self):
         line = self.pop().line
@@ -711,7 +711,7 @@ class Parser:
 
 
 # ──────────────────────────────────────────────
-# Pretty Printer (AST dump)
+# AST pretty printer
 # ──────────────────────────────────────────────
 
 def dump_expr(e: Expr) -> str:
@@ -746,8 +746,8 @@ def dump(node, indent=0):
         print(f"{pad}Program")
         for b in node.blocks:
             dump(b, indent + 1)
-    elif isinstance(node, TimeUnit):
-        print(f"{pad}TimeUnit [line {node.line}]")
+    elif isinstance(node, TimeNode):
+        print(f"{pad}TimeNode [line {node.line}]")
         dump(node.schedule, indent + 1)
         print(f"{pad}  Actions:")
         for a in node.actions:
@@ -756,8 +756,8 @@ def dump(node, indent=0):
             print(f"{pad}  Fallback:")
             for f in node.fallback:
                 dump(f, indent + 2)
-    elif isinstance(node, ScriptUnit):
-        print(f"{pad}ScriptUnit [line {node.line}]")
+    elif isinstance(node, ScriptNode):
+        print(f"{pad}ScriptNode [line {node.line}]")
         print(f"{pad}  Actions:")
         for a in node.actions:
             dump(a, indent + 2)
@@ -767,24 +767,24 @@ def dump(node, indent=0):
                 dump(f, indent + 2)
     elif isinstance(node, Schedule):
         print(f"{pad}Schedule({node.kind}, interval={node.interval}, time={node.time})")
-    elif isinstance(node, WithUnit):
-        print(f"{pad}WithUnit [line {node.line}] config={node.config}")
+    elif isinstance(node, WithNode):
+        print(f"{pad}WithNode [line {node.line}] config={node.config}")
         dump(node.object, indent + 1)
         print(f"{pad}  Actions:")
         for a in node.actions:
             dump(a, indent + 2)
     elif isinstance(node, ObjectRef):
         print(f"{pad}Object({node.kind}, {node.value})")
-    elif isinstance(node, RetryUnit):
-        print(f"{pad}RetryUnit({node.times}x) [line {node.line}]")
+    elif isinstance(node, RetryNode):
+        print(f"{pad}RetryNode({node.times}x) [line {node.line}]")
         for a in node.actions:
             dump(a, indent + 1)
         if node.fallback:
             print(f"{pad}  Fallback:")
             for f in node.fallback:
                 dump(f, indent + 2)
-    elif isinstance(node, WhenUnit):
-        print(f"{pad}WhenUnit({node.condition}) [line {node.line}]")
+    elif isinstance(node, WhenNode):
+        print(f"{pad}WhenNode({node.condition}) [line {node.line}]")
         print(f"{pad}  Actions:")
         for a in node.actions:
             dump(a, indent + 2)
@@ -792,8 +792,8 @@ def dump(node, indent=0):
             print(f"{pad}  Fallback:")
             for f in node.fallback:
                 dump(f, indent + 2)
-    elif isinstance(node, WatchUnit):
-        print(f"{pad}WatchUnit(path={node.path}) [line {node.line}]")
+    elif isinstance(node, WatchNode):
+        print(f"{pad}WatchNode(path={node.path}) [line {node.line}]")
         for a in node.actions:
             dump(a, indent + 1)
     elif isinstance(node, LetStatement):
@@ -806,7 +806,7 @@ def dump(node, indent=0):
         print(f"{pad}For({node.var} in {dump_expr(node.collection)}) [line {node.line}]")
         for a in node.body:
             dump(a, indent + 1)
-    elif isinstance(node, ImportStatement):
+    elif isinstance(node, UseStatement):
         print(f"{pad}Import('{node.path}') [line {node.line}]")
     elif isinstance(node, Expr):
         print(f"{pad}{dump_expr(node)} [line {node.line}]")
@@ -827,7 +827,7 @@ def dump(node, indent=0):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python parser_e.py <file.e>")
+        print("Usage: python parser/main.py <file.e>")
         sys.exit(1)
 
     for path in sys.argv[1:]:

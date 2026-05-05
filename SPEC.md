@@ -35,7 +35,7 @@ A program is a sequence of **statement units**:
 
 ```
 program    = { statement_unit } ;
-statement_unit = time_unit | script_unit | fn_definition | let_statement | import_statement ;
+statement_unit = time_unit | script_unit | fn_definition | let_statement | use_statement ;
 ```
 
 ---
@@ -259,7 +259,7 @@ Strings are split by newlines when iterated. Lists iterate element by element.
 **Purpose:** Load code from another file.
 
 ```
-import_statement = "import", string ;
+use_statement = "use", string ;
 ```
 
 **Example:**
@@ -270,7 +270,7 @@ fn double n do n * 2 done
 
 // main.e
 do
-    import "lib"
+    use "lib"
     log double 5
 done
 ```
@@ -588,13 +588,13 @@ done or log error
 
 ```bash
 # dry-run (default, safe)
-python3 runtime/run_e.py script.e
+python3 runtime/cli.py script.e
 
 # live execution (writes files, opens browser, etc.)
-python3 runtime/run_e.py --live script.e
+python3 runtime/cli.py --live script.e
 
 # keep alive for scheduled tasks
-python3 runtime/run_e.py --live --watch script.e
+python3 runtime/cli.py --live --watch script.e
 ```
 
 ### Dependencies

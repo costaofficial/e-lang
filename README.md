@@ -7,10 +7,10 @@
 ```rust
 time every week at 03:00 do
     with browser do
-        open "https://connect.garmin.com"
+        open "https://connect.g.com"
         with page { timeout: 15s } do
             login "user" "password" or stop
-            open "https://connect.garmin.com/modern/activities"
+            open "https://connect.g.com/modern/activities"
             click "#export-all-btn"
             wait download
         done
