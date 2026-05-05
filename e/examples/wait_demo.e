@@ -1,0 +1,12 @@
+// Wait demo — test visible/hidden
+do
+    with browser do
+        open "https://example.com"
+        with page { timeout: 5s } do
+            find "h1"
+            log "found heading"
+            wait until visible "h1"
+            log "h1 is visible"
+        done
+    done
+done

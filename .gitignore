@@ -1,8 +1,6 @@
+/e/target/
 __pycache__/
 *.pyc
-*.pyo
 .DS_Store
 *.swp
 *.swo
-.vscode/
-*.egg-info/

@@ -1,0 +1,10 @@
+// Demo: live execution test
+do
+    log "starting live demo"
+    run "echo 'hello from E'"
+    with file "demo.txt" do
+        write "E was here"
+    done
+    run "cat demo.txt"
+    log "done"
+done

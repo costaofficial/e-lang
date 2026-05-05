@@ -1,0 +1,10 @@
+// Browser demo — live Playwright test
+do
+    with browser do
+        open "https://example.com"
+        with page do
+            find "h1"
+            log "found the page title"
+        done
+    done
+done

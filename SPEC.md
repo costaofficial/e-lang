@@ -1,6 +1,6 @@
 # E — Language Specification
 
-> v1.0 — May 2026
+> v2.0 — May 2026 (Rust runtime)
 
 ---
 
@@ -587,15 +587,17 @@ done or log error
 ## 23. CLI usage
 
 ```bash
-# dry-run (default, safe)
-python3 runtime/cli.py script.e
+# Build from source
+cd e/
+cargo build --release
+./target/release/e examples/hello.e
 
-# live execution (writes files, opens browser, etc.)
-python3 runtime/cli.py --live script.e
-
-# keep alive for scheduled tasks
-python3 runtime/cli.py --live --watch script.e
+# Or install globally
+sudo cp target/release/e /usr/local/bin/
+e examples/hello.e
 ```
+
+No dependencies required. Single binary.
 
 ### Dependencies
 
