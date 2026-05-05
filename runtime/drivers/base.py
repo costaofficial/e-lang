@@ -89,6 +89,20 @@ class Driver(ABC):
     def wait_until(self, condition: str, selector: str, line: int):
         ...
 
+    # ── Semantic actions ──
+
+    @abstractmethod
+    def get_number(self, selector: Optional[str], ctx, line: int):
+        """Extract a number from the current element or selector."""
+
+    @abstractmethod
+    def find_all(self, selector: str, ctx, line: int):
+        """Find all elements matching selector. Sets ctx.current_count and ctx.current_item."""
+
+    @abstractmethod
+    def evaluate_condition(self, condition: dict, ctx, line: int) -> bool:
+        """Evaluate a when condition. Returns True/False."""
+
     # ── System ──
 
     @abstractmethod
@@ -125,6 +139,46 @@ class DryDriver(Driver):
 
     def set_page_timeout(self, ms: int, line: int):
         self.log(f"  ⏱️ page timeout set to {ms}ms", line)
+
+    def get_number(self, selector, ctx, line: int):
+        self.log(f"  🔢 get number" + (f" from '{selector}'" if selector else ""), line)
+        ctx.current_number = 42
+
+    def find_all(self, selector, ctx, line: int):
+        self.log(f"  🔍 find all '{selector}'", line)
+        ctx.current_count = 3  # simulated
+        ctx.current_item = []
+        self.log(f"  📊 count = {ctx.current_count}", line)
+
+    def evaluate_condition(self, condition, ctx, line: int) -> bool:
+        cond_type = condition.get('type')
+        target = condition.get('target')
+        if cond_type == 'item_visible':
+            result = True
+            self.log(f"  🔍 item visible? → {result}", line)
+            return result
+        elif cond_type == 'item_hidden':
+            result = False
+            self.log(f"  🔍 item hidden? → {result}", line)
+            return result
+        elif cond_type == 'compare':
+            actual = ctx.current_number if target == 'number' else ctx.current_count
+            if actual is None:
+                self.log(f"  ⚠️ {target} is not set (use 'get number' first)", line)
+                return False
+            op = condition['operator']
+            val = condition['value']
+            results = {
+                '=': actual == val,
+                '>': actual > val,
+                '<': actual < val,
+                '>=': actual >= val,
+                '<=': actual <= val,
+            }
+            r = results.get(op, False)
+            self.log(f"  📊 {target} {op} {val}? (actual: {actual}) → {r}", line)
+            return r
+        return False
 
     def open(self, url: str, line: int):
         self.log(f"  🌐 open '{url}'", line)

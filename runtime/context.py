@@ -5,12 +5,13 @@ E — Runtime context
 
 class RuntimeContext:
     def __init__(self):
-        self.current_element = None
-        self.current_object = None
-        self.browser = None
+        self.current_element = None   # set by find (single element)
+        self.current_object = None    # set by with
+        self.current_item = None      # generic current item (can be list from find all)
+        self.current_number = None    # numeric value from get number
+        self.current_count = 0        # count from find all
         self.stop_flag = False
         self.object_stack = []
-        self._browser_count = 0
 
     def push_object(self, obj):
         self.object_stack.append(self.current_object)

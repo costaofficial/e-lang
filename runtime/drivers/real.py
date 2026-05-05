@@ -204,6 +204,77 @@ class RealDriver(Driver):
     def login(self, user: str, password: str, line: int):
         self.log(f"  🔐 login '{user}' / '{'*' * len(password)}' (NOT IMPLEMENTED — install Playwright)", line)
 
+    # ── Semantic actions ──
+
+    def get_number(self, selector, ctx, line: int):
+        if not selector and ctx.current_item:
+            # use current_item as text source
+            self.log(f"  🔢 get number from current item", line)
+            return
+        if self._browser and self._browser.is_running and selector:
+            try:
+                text = self._browser.page.locator(selector).text_content(timeout=5000)
+                if text:
+                    import re
+                    nums = re.findall(r'[\d.]+', text)
+                    if nums:
+                        ctx.current_number = float(nums[0].replace(',', ''))
+                        self.log(f"  🔢 got number: {ctx.current_number}", line)
+                        return
+            except Exception as e:
+                self.log(f"  ⚠️ get number failed: {e}", line)
+                return
+        self.log(f"  🔢 get number" + (f" from '{selector}'" if selector else "") + " (simulated)", line)
+        ctx.current_number = 42
+
+    def find_all(self, selector, ctx, line: int):
+        if self._browser and self._browser.is_running:
+            try:
+                elements = self._browser.page.locator(selector).all()
+                ctx.current_count = len(elements)
+                ctx.current_item = elements
+                self.log(f"  🔍 find all '{selector}' → {ctx.current_count} elements", line)
+                return
+            except Exception as e:
+                self.log(f"  ⚠️ find all failed: {e}", line)
+                return
+        self.log(f"  🔍 find all '{selector}' (simulated)", line)
+        ctx.current_count = 3
+        ctx.current_item = []
+
+    def evaluate_condition(self, condition, ctx, line: int) -> bool:
+        cond_type = condition.get('type')
+        target = condition.get('target')
+        if cond_type == 'item_visible':
+            if self._browser and self._browser.is_running and ctx.current_item:
+                try:
+                    self._browser.wait_until('visible', ctx.current_item if isinstance(ctx.current_item, str) else '')
+                    self.log(f"  ✅ item visible", line)
+                    return True
+                except:
+                    self.log(f"  ❌ item not visible", line)
+                    return False
+            self.log(f"  ✅ item visible (simulated)", line)
+            return True
+        elif cond_type == 'item_hidden':
+            self.log(f"  ❌ item hidden (simulated)", line)
+            return False
+        elif cond_type == 'compare':
+            actual = ctx.current_number if target == 'number' else ctx.current_count
+            op = condition['operator']
+            val = condition['value']
+            results = {
+                '=': actual == val,
+                '>': actual > val,
+                '<': actual < val,
+                '>=': actual >= val,
+                '<=': actual <= val,
+            }
+            r = results.get(op, False)
+            self.log(f"  📊 {target} {op} {val}? (actual: {actual}) → {r}", line)
+            return r
+        return False
+
     # ── Browser config ──
 
     def set_page_timeout(self, ms: int, line: int):

@@ -7,7 +7,7 @@ from .drivers.base import Driver, DryDriver
 from .drivers.real import RealDriver
 from parser.parser_e import (
     Program, TimeBlock, ScriptBlock, Schedule,
-    WithBlock, ObjectRef, RetryBlock, WatchBlock, Action
+    WithBlock, ObjectRef, RetryBlock, WatchBlock, WhenBlock, Action
 )
 
 
@@ -52,6 +52,9 @@ class Executor:
 
         elif isinstance(node, WatchBlock):
             self._exec_watch_block(node)
+
+        elif isinstance(node, WhenBlock):
+            self._exec_when_block(node)
 
         elif isinstance(node, Action):
             self._exec_action(node)
@@ -174,6 +177,17 @@ class Executor:
             return int(config[:-1]) * 1000
         return int(config) * 1000
 
+    def _exec_when_block(self, node: WhenBlock):
+        result = self.driver.evaluate_condition(node.condition, self.ctx, node.line)
+        if result:
+            self.driver.log(f"  ➡️ condition true, executing block", node.line)
+            for action in node.actions:
+                if self.ctx.should_stop:
+                    break
+                self._safe(action, node.fallback)
+        else:
+            self.driver.log(f"  ➡️ condition false, skipping block", node.line)
+
     def _exec_action_list_safe(self, actions):
         """Execute actions, propagating only errors without local fallback."""
         for action in actions:
@@ -199,6 +213,8 @@ class Executor:
             'wait_until': self._action_wait_until,
             'run': self._action_run,
             'create': self._action_create,
+            'get_number': self._action_get_number,
+            'find_all': self._action_find_all,
         }
         fn = dispatcher.get(kind)
         if not fn:
@@ -263,3 +279,11 @@ class Executor:
 
     def _action_create(self, node: Action):
         self.driver.create(node.args[0], node.line)
+
+    def _action_get_number(self, node: Action):
+        selector = node.args[0]
+        self.driver.get_number(selector, self.ctx, node.line)
+
+    def _action_find_all(self, node: Action):
+        selector = node.args[0]
+        self.driver.find_all(selector, self.ctx, node.line)

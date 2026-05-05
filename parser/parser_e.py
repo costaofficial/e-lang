@@ -70,6 +70,13 @@ class WatchBlock:
     line: int = 0
 
 @dataclass
+class WhenBlock:
+    condition: dict
+    actions: list
+    fallback: Optional = None
+    line: int = 0
+
+@dataclass
 class Action:
     kind: str
     args: list = field(default_factory=list)
@@ -89,6 +96,7 @@ KEYWORDS = {
     'file', 'browser', 'page', 'app',
     'visible', 'hidden', 'download', 'to',
     's', 'ms', 'timeout',
+    'when', 'all', 'get', 'from', 'number', 'item', 'count',
 }
 
 TOKEN_SPEC = [
@@ -96,6 +104,7 @@ TOKEN_SPEC = [
     ('STRING',    r'"[^"]*"'),
     ('NUMBER',    r'\d+'),
     ('IDENT',     r'[a-zA-Z_][a-zA-Z0-9_]*'),
+    ('OP',        r'>=|<=|>|<|='),
     ('LBRACE',    r'\{'),
     ('RBRACE',    r'\}'),
     ('COLON',     r':'),
@@ -274,13 +283,26 @@ class Parser:
             return self.parse_write_action()
         elif t.value in ('email', 'upload'):
             return self.parse_transfer_action()
+        elif t.value == 'find' and self._peek_next().value == 'all':
+            return self.parse_find_all()
         elif t.value in ('click', 'find'):
             return self.parse_ui_action()
         elif t.value == 'log':
             return self.parse_log_action()
         elif t.value in self.SIMPLE_ACTIONS:
             return self.parse_simple_action()
+        elif t.value == 'when':
+            return self.parse_when_block()
+        elif t.value == 'get' and self._peek_next().value == 'number':
+            return self.parse_get_number()
         raise ParseError(f"line {t.line}: unknown action '{t.value}'")
+
+    def _peek_next(self):
+        """Peek at the next real token (skip newlines)."""
+        pos = self.pos + 1
+        while pos < len(self.tokens) and self.tokens[pos].kind == 'NEWLINE':
+            pos += 1
+        return self.tokens[pos] if pos < len(self.tokens) else Token('EOF', '', 0)
 
     def parse_simple_action(self):
         t = self.pop()
@@ -384,6 +406,44 @@ class Parser:
             return Action('click', [sel], line=line)
         return Action('click', line=line)
 
+    def parse_when_block(self):
+        line = self.pop().line  # 'when'
+        cond = self.parse_condition()
+        self.expect('KEYWORD', 'do')
+        actions = self.parse_actions()
+        self.expect('KEYWORD', 'done')
+        return WhenBlock(cond, actions, line=line)
+
+    def parse_condition(self):
+        t = self.pop()  # 'item', 'number', or 'count'
+        target = t.value
+
+        if target == 'item':
+            cond = self.pop().value  # 'visible' or 'hidden'
+            return {'type': f'item_{cond}', 'target': 'item'}
+
+        elif target in ('number', 'count'):
+            op = self.expect('OP').value  # '=', '>', '<', '>=', '<='
+            val = int(self.expect('NUMBER').value)
+            return {'type': 'compare', 'target': target, 'operator': op, 'value': val}
+
+        raise ParseError(f"line {t.line}: expected 'item', 'number', or 'count', got '{t.value}'")
+
+    def parse_get_number(self):
+        line = self.pop().line  # 'get'
+        self.expect('KEYWORD', 'number')
+        selector = None
+        if self.peek().value == 'from':
+            self.pop()
+            selector = self.expect('STRING').value.strip('"')
+        return Action('get_number', [selector], line=line)
+
+    def parse_find_all(self):
+        t = self.pop()  # 'find'
+        self.pop()  # 'all'
+        selector = self.expect('STRING').value.strip('"')
+        return Action('find_all', [selector], line=t.line)
+
     def parse_log_action(self):
         line = self.pop().line
         t = self.peek()
@@ -455,6 +515,15 @@ def dump(node, indent=0):
         print(f"{pad}RetryBlock({node.times}x) [line {node.line}]")
         for a in node.actions:
             dump(a, indent + 1)
+        if node.fallback:
+            print(f"{pad}  Fallback:")
+            for f in node.fallback:
+                dump(f, indent + 2)
+    elif isinstance(node, WhenBlock):
+        print(f"{pad}WhenBlock({node.condition}) [line {node.line}]")
+        print(f"{pad}  Actions:")
+        for a in node.actions:
+            dump(a, indent + 2)
         if node.fallback:
             print(f"{pad}  Fallback:")
             for f in node.fallback:

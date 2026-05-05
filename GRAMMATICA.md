@@ -67,12 +67,53 @@ core_statement =
     | transfer_action
     | ui_action
     | log_action
+    | when_block
+    | get_number_action
+    | find_all_action
     ;
 ```
 
 ---
 
-## 7) Fallback
+## 7) When block
+
+```
+when_block = "when", condition, "do", actions, "done" ;
+
+condition = "item", ("visible" | "hidden")
+          | ("number" | "count"), ("=" | ">" | "<" | ">=" | "<="), number
+          ;
+```
+
+📌 `item visible` / `item hidden` controlla lo stato dell'elemento corrente.
+📌 `number > 5` / `count <= 10` confronta il valore corrente con un numero.
+
+---
+
+## 8) Get number
+
+```
+get_number_action = "get", "number", [ "from", selector ] ;
+```
+
+📌 Estrae un valore numerico dall'elemento corrente o da un selettore.
+📌 Il risultato viene salvato in `number`.
+
+---
+
+## 9) Find all
+
+```
+find_all_action = "find", "all", selector ;
+```
+
+📌 Trova tutti gli elementi che匹配 il selettore.
+📌 `count` = numero di elementi trovati.
+📌 `item` = la lista completa.
+
+---
+
+## 10) Fallback
 
 ```
 fallback = simple_fallback
@@ -101,7 +142,7 @@ duration  = number, "s" | number, "ms" ;
 
 ---
 
-## 9) UI actions (`find` sets current element)
+## 11) UI actions (`find` sets current element)
 
 ```
 ui_action = "click", [ selector ]
@@ -116,7 +157,7 @@ selector  = string ;
 
 ---
 
-## 10) Write action
+## 12) Write action
 
 ```
 write_action = "write", ( object, string | string ) ;
@@ -127,7 +168,7 @@ write_action = "write", ( object, string | string ) ;
 
 ---
 
-## 11) Transfer action
+## 13) Transfer action
 
 ```
 transfer_action = ("email" | "upload"), "to", target, [ object ] ;
@@ -140,7 +181,7 @@ target = string ;
 
 ---
 
-## 12) Retry block
+## 14) Retry block
 
 ```
 retry_block = "retry", number, "times", "do", actions, "done" ;
@@ -148,7 +189,7 @@ retry_block = "retry", number, "times", "do", actions, "done" ;
 
 ---
 
-## 13) Wait statement
+## 15) Wait statement
 
 ```
 wait_statement = "wait", "until", condition
@@ -162,7 +203,7 @@ condition    = "visible", selector
 
 ---
 
-## 14) Watch block
+## 16) Watch block
 
 ```
 watch_block = "watch", string, "do", actions, "done" ;
@@ -172,7 +213,7 @@ watch_block = "watch", string, "do", actions, "done" ;
 
 ---
 
-## 15) Login statement
+## 17) Login statement
 
 ```
 login_statement = "login", string, string ;
@@ -180,7 +221,7 @@ login_statement = "login", string, string ;
 
 ---
 
-## 16) Stop statement
+## 18) Stop statement
 
 ```
 stop_statement = "stop" ;
@@ -190,7 +231,7 @@ stop_statement = "stop" ;
 
 ---
 
-## 17) Log action
+## 19) Log action
 
 ```
 log_action = "log", string ;
@@ -198,7 +239,7 @@ log_action = "log", string ;
 
 ---
 
-## 18) Literals
+## 20) Literals
 
 ```
 string  = '"', { character }, '"' ;
@@ -208,7 +249,7 @@ digit   = "0" | "1" | ... | "9" ;
 
 ---
 
-## 19) Comments
+## 21) Comments
 
 ```
 comment = "//", { character }, newline ;
