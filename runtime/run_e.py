@@ -11,14 +11,21 @@ Usage:
 
 import sys
 import time
-import signal
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Make local development work without pip install
+if __name__ == '__main__' or not __package__:
+    root = str(Path(__file__).resolve().parent.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
 
 from parser.parser_e import lex, Parser, ParseError
 from runtime.executor import Executor, EError
 
+
+# ──────────────────────────────────────────────
+# Main CLI
+# ──────────────────────────────────────────────
 
 def main():
     args = sys.argv[1:]

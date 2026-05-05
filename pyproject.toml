@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "e-lang"
+version = "0.7.0"
+description = "E — a general-purpose language. Describe actions in time."
+readme = "README.md"
+license = { text = "Apache 2.0" }
+requires-python = ">=3.10"
+
+[project.scripts]
+e = "runtime.run_e:main"
+
+[tool.setuptools.packages.find]
+include = ["runtime*", "parser*"]
