@@ -4,7 +4,8 @@ E RealDriver — actually executes actions
 
 Step 1: Scheduler + Log (working)
 Step 2: File + subprocess (working)
-Step 3+: Stubs with clear "NOT IMPLEMENTED" messages
+Step 3: Browser — open/find/click via Playwright (working)
+Step 4+: Stubs with clear "NOT IMPLEMENTED" messages
 """
 
 import os
@@ -19,6 +20,7 @@ from .base import Driver
 class RealDriver(Driver):
     def __init__(self):
         self.scheduler = None
+        self._browser = None
         self._pending_jobs = []
 
     def setup(self):
@@ -100,9 +102,43 @@ class RealDriver(Driver):
         self.log("▶️ Script block", line)
         actions_fn()
 
-    # ── Browser ──
+    # ── Browser lifecycle ──
+
+    def browser_start(self, line: int):
+        if self._browser:
+            self.log("  (browser already running)", line)
+            return
+        try:
+            from ..drivers.browser import BrowserDriver
+            self._browser = BrowserDriver()
+            self._browser.start()
+            self.log("  ✅ Browser started", line)
+        except RuntimeError as e:
+            self.log(f"  ⚠️ {e}", line)
+            self._browser = None
+        except Exception as e:
+            self.log(f"  ⚠️ Failed to start browser: {e}", line)
+            self._browser = None
+
+    def browser_stop(self, line: int):
+        if self._browser:
+            try:
+                self._browser.close()
+                self.log("  ✅ Browser closed", line)
+            except Exception as e:
+                self.log(f"  ⚠️ Error closing browser: {e}", line)
+            self._browser = None
+
+    # ── Browser actions ──
 
     def open(self, url: str, line: int):
+        if self._browser and self._browser.is_running:
+            try:
+                self._browser.open(url)
+                self.log(f"  🌐 opened '{url}'", line)
+                return
+            except Exception as e:
+                self.log(f"  ⚠️ browser open failed: {e}", line)
         self.log(f"  🌐 open '{url}'", line)
         try:
             import webbrowser
@@ -111,9 +147,25 @@ class RealDriver(Driver):
             self.log(f"  ⚠️ Failed to open browser: {e}", line)
 
     def click(self, selector: Optional[str], line: int):
+        if self._browser and self._browser.is_running:
+            try:
+                self._browser.click(selector)
+                self.log(f"  🖱️ clicked '{selector}'", line)
+                return
+            except Exception as e:
+                self.log(f"  ⚠️ browser click failed: {e}", line)
+                return
         self.log(f"  🖱️ click '{selector}' (NOT IMPLEMENTED — install Playwright)", line)
 
     def find(self, selector: str, line: int):
+        if self._browser and self._browser.is_running:
+            try:
+                self._browser.find(selector)
+                self.log(f"  🔍 found '{selector}'", line)
+                return
+            except Exception as e:
+                self.log(f"  ⚠️ browser find failed: {e}", line)
+                return
         self.log(f"  🔍 find '{selector}' (NOT IMPLEMENTED — install Playwright)", line)
 
     # ── File ──

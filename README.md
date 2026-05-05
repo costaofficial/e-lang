@@ -54,10 +54,10 @@ v0.2 — live execution enabled.
 | `open` (browser) | ✅ | ✅ |
 | `time` scheduling (APScheduler) | ✅ | ✅ |
 | `retry` + `fallback` | ✅ | ✅ |
-| `click` / `find` | ✅ | ⏳ (needs Playwright) |
-| `login` | ✅ | ⏳ (needs Playwright) |
+| `click` / `find` | ✅ | ✅ (Playwright) |
+| `login` | ✅ | ⏳ (needs Playwright auto-detect) |
 | `email` | ✅ | ⏳ (needs SMTP config) |
-| `wait download` | ✅ | ⏳ (needs browser driver) |
+| `wait download` | ✅ | ⏳ (needs browser download handler) |
 | `watch` (filesystem) | ✅ | ⏳ (needs watchdog) |
 
 ## Quick start
@@ -78,6 +78,10 @@ python3 runtime/run_e.py --live --watch examples/garmin.e
 ```bash
 # Optional — needed for scheduler
 pip install apscheduler
+
+# Optional — needed for browser automation
+pip install playwright
+playwright install chromium
 ```
 
 ## Examples
@@ -89,6 +93,7 @@ pip install apscheduler
 | `examples/login.e` | Retry logic with fallback |
 | `examples/download.e` | Browser automation pipeline |
 | `examples/garmin.e` | Full automation script |
+| `examples/browser_demo.e` | Live browser demo (Playwright) |
 | `examples/demo_live.e` | Live mode demo (file + subprocess) |
 
 ## License

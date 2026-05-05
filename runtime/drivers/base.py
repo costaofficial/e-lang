@@ -23,6 +23,16 @@ class Driver(ABC):
     def teardown(self):
         """Called once after execution."""
 
+    # ── Browser lifecycle ──
+
+    @abstractmethod
+    def browser_start(self, line: int):
+        """Entering a 'with browser' block."""
+
+    @abstractmethod
+    def browser_stop(self, line: int):
+        """Exiting a 'with browser' block."""
+
     # ── Browser actions ──
 
     @abstractmethod
@@ -99,6 +109,12 @@ class DryDriver(Driver):
         pass
 
     def teardown(self):
+        pass
+
+    def browser_start(self, line: int):
+        self.log("  🌐 (browser simulation)", line)
+
+    def browser_stop(self, line: int):
         pass
 
     def open(self, url: str, line: int):

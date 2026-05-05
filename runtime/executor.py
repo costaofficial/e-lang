@@ -117,6 +117,7 @@ class Executor:
                 self.driver.log(f"📄 Context: file '{node.object.value}'", node.line)
             elif node.object.kind == 'browser':
                 self.driver.log(f"🌐 Context: browser", node.line)
+                self.driver.browser_start(node.line)
             elif node.object.kind == 'page':
                 self.driver.log(f"📄 Context: page", node.line)
             elif node.object.kind == 'app':
@@ -127,6 +128,8 @@ class Executor:
                     break
                 self._safe(action, node.fallback)
         finally:
+            if node.object.kind == 'browser':
+                self.driver.browser_stop(node.line)
             self.ctx.pop_object()
 
     def _exec_retry_block(self, node: RetryBlock):
