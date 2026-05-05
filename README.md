@@ -43,8 +43,53 @@ See [GRAMMATICA.md](GRAMMATICA.md) for the full EBNF specification.
 
 ## Status
 
-v0.1 — proof of concept. Parser + interpreter working in dry-run mode.
-Browser automation, email, and file watching are stubs ready for real drivers.
+v0.2 — live execution enabled.
+
+| Feature | Dry-run | Live |
+|---------|---------|------|
+| Parser + AST | ✅ | ✅ |
+| `log` | ✅ | ✅ |
+| `run` (subprocess) | ✅ | ✅ |
+| `write` / `create` (filesystem) | ✅ | ✅ |
+| `open` (browser) | ✅ | ✅ |
+| `time` scheduling (APScheduler) | ✅ | ✅ |
+| `retry` + `fallback` | ✅ | ✅ |
+| `click` / `find` | ✅ | ⏳ (needs Playwright) |
+| `login` | ✅ | ⏳ (needs Playwright) |
+| `email` | ✅ | ⏳ (needs SMTP config) |
+| `wait download` | ✅ | ⏳ (needs browser driver) |
+| `watch` (filesystem) | ✅ | ⏳ (needs watchdog) |
+
+## Quick start
+
+```bash
+# dry-run (default — shows what would happen)
+python3 runtime/run_e.py examples/hello.e
+
+# live mode (actually writes files, opens browser, etc.)
+python3 runtime/run_e.py --live examples/demo_live.e
+
+# live with scheduler (keeps process alive for scheduled tasks)
+python3 runtime/run_e.py --live --watch examples/garmin.e
+```
+
+## Install dependencies
+
+```bash
+# Optional — needed for scheduler
+pip install apscheduler
+```
+
+## Examples
+
+| File | What it does |
+|------|-------------|
+| `examples/hello.e` | Opens Google, searches |
+| `examples/backup.e` | Writes a file, emails it |
+| `examples/login.e` | Retry logic with fallback |
+| `examples/download.e` | Browser automation pipeline |
+| `examples/garmin.e` | Full automation script |
+| `examples/demo_live.e` | Live mode demo (file + subprocess) |
 
 ## License
 
