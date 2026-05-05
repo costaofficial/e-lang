@@ -7,7 +7,8 @@ from .drivers.base import Driver, DryDriver
 from .drivers.real import RealDriver
 from parser.parser_e import (
     Program, TimeUnit, ScriptUnit, Schedule,
-    WithUnit, ObjectRef, RetryUnit, WatchUnit, WhenUnit, Action
+    WithUnit, ObjectRef, RetryUnit, WatchUnit, WhenUnit, Action,
+    LetStatement, FnDefinition, Expr, dump_expr,
 )
 
 
@@ -64,6 +65,21 @@ class Executor:
 
         elif isinstance(node, Action):
             self._exec_action(node)
+
+        elif isinstance(node, LetStatement):
+            val = self._eval_expr(node.value)
+            self.ctx.scope.def_var(node.name, val)
+            self.driver.log(f"  📦 let {node.name} = {val}", node.line)
+
+        elif isinstance(node, FnDefinition):
+            self.ctx.scope.def_fn(node.name, node)
+            self.driver.log(f"  📦 fn {node.name}({', '.join(node.params)})", node.line)
+
+        elif isinstance(node, Expr):
+            result = self._eval_expr(node)
+            if result is not None:
+                # Return value for function body
+                self._expr_result = result
 
         else:
             self.driver.log(f"⚠️ Unknown node: {type(node).__name__}", 0)
@@ -222,7 +238,14 @@ class Executor:
         return int(config) * 1000
 
     def _exec_when_block(self, node: WhenUnit):
-        result = self.driver.evaluate_condition(node.condition, self.ctx, node.line)
+        cond = node.condition
+        if cond.get('type') == 'expr':
+            # General expression condition
+            result = self._eval_expr(cond['expr'])
+            self.driver.log(f"  🔍 when ({dump_expr(cond['expr'])}) → {bool(result)}", node.line)
+        else:
+            # Semantic condition (item visible, count > 5, etc.)
+            result = self.driver.evaluate_condition(cond, self.ctx, node.line)
         if result:
             self.driver.log(f"  ➡️ condition true, executing unit", node.line)
             for action in node.actions:
@@ -231,6 +254,85 @@ class Executor:
                 self._safe(action, node.fallback)
         else:
             self.driver.log(f"  ➡️ condition false, skipping unit", node.line)
+
+    # ── Expression evaluation ──
+
+    def _eval_expr(self, expr: Expr):
+        if expr.kind == 'num':
+            return expr.value
+        elif expr.kind == 'str':
+            return expr.value
+        elif expr.kind == 'var':
+            try:
+                return self.ctx.scope.get_var(expr.value)
+            except NameError as e:
+                raise EError(str(e), expr.line)
+        elif expr.kind == 'call':
+            try:
+                fn_def = self.ctx.scope.get_fn(expr.value)
+            except NameError as e:
+                raise EError(str(e), expr.line)
+
+            if len(expr.args) != len(fn_def.params):
+                raise EError(
+                    f"function '{expr.value}' expects {len(fn_def.params)} args, got {len(expr.args)}",
+                    expr.line)
+
+            # Evaluate arguments
+            arg_vals = [self._eval_expr(a) for a in expr.args]
+
+            # Create new scope and bind params
+            self.ctx.push_scope()
+            for param, val in zip(fn_def.params, arg_vals):
+                self.ctx.scope.def_var(param, val)
+
+            # Execute function body
+            result = None
+            self._expr_result = None
+            for action in fn_def.body:
+                if self.ctx.should_stop:
+                    break
+                self._run(action)
+            result = self._expr_result
+            self._expr_result = None
+
+            self.ctx.pop_scope()
+            return result
+
+        elif expr.kind == 'bin':
+            left = self._eval_expr(expr.left)
+            right = self._eval_expr(expr.right)
+            op = expr.op
+            if op == '+':
+                if isinstance(left, str) or isinstance(right, str):
+                    return str(left) + str(right)
+                return left + right
+            elif op == '-':
+                return left - right
+            elif op == '*':
+                return left * right
+            elif op == '/':
+                return left / right
+            elif op == '>':
+                return left > right
+            elif op == '<':
+                return left < right
+            elif op == '>=':
+                return left >= right
+            elif op == '<=':
+                return left <= right
+            elif op == '==':
+                return left == right
+            elif op == '!=':
+                return left != right
+            elif op == 'and':
+                return left and right
+            elif op == 'or':
+                return left or right
+            else:
+                raise EError(f"unknown operator '{op}'", expr.line)
+
+        return None
 
     def _exec_action_list_safe(self, actions):
         """Execute actions, propagating only errors without local fallback."""
@@ -252,6 +354,7 @@ class Executor:
             'upload': self._action_upload,
             'login': self._action_login,
             'log': self._action_log,
+            'log_expr': self._action_log_expr,
             'stop': self._action_stop,
             'wait_download': self._action_wait_download,
             'wait_until': self._action_wait_until,
@@ -306,6 +409,10 @@ class Executor:
 
     def _action_log(self, node: Action):
         self.driver.log(f"  📝 {node.args[0]}", node.line)
+
+    def _action_log_expr(self, node: Action):
+        val = self._eval_expr(node.args[0])
+        self.driver.log(f"  📝 {val}", node.line)
 
     def _action_stop(self, node: Action):
         self.driver.log(f"  🛑 stop", node.line)

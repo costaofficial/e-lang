@@ -83,6 +83,29 @@ class Action:
     fallback: Optional = None
     line: int = 0
 
+@dataclass
+class LetStatement:
+    name: str
+    value: 'Expr'
+    line: int = 0
+
+@dataclass
+class FnDefinition:
+    name: str
+    params: list
+    body: list
+    line: int = 0
+
+@dataclass
+class Expr:
+    kind: str   # 'num' | 'str' | 'var' | 'call' | 'bin'
+    value: any = None
+    left: Optional['Expr'] = None
+    right: Optional['Expr'] = None
+    op: Optional[str] = None
+    args: list = field(default_factory=list)
+    line: int = 0
+
 
 # ──────────────────────────────────────────────
 # Lexer
@@ -97,6 +120,7 @@ KEYWORDS = {
     'visible', 'hidden', 'download', 'to',
     's', 'ms', 'timeout',
     'when', 'all', 'get', 'from', 'number', 'item', 'count',
+    'let', 'fn',
 }
 
 TOKEN_SPEC = [
@@ -104,7 +128,7 @@ TOKEN_SPEC = [
     ('STRING',    r'"[^"]*"'),
     ('NUMBER',    r'\d+'),
     ('IDENT',     r'[a-zA-Z_][a-zA-Z0-9_]*'),
-    ('OP',        r'>=|<=|>|<|='),
+    ('OP',        r'>=|<=|>|<|==|!=|=|\+|\-|\*|/'),
     ('LBRACE',    r'\{'),
     ('RBRACE',    r'\}'),
     ('COLON',     r':'),
@@ -259,7 +283,7 @@ class Parser:
     def parse_statement(self):
         core = self.parse_core_statement()
         self.skip_newlines()
-        if self.peek().value == 'or':
+        if self.peek().value == 'or' and hasattr(core, 'fallback'):
             core.fallback = self.parse_fallback()
         return core
 
@@ -295,6 +319,12 @@ class Parser:
             return self.parse_when_block()
         elif t.value == 'get' and self._peek_next().value == 'number':
             return self.parse_get_number()
+        elif t.value == 'let':
+            return self.parse_let()
+        elif t.value == 'fn':
+            return self.parse_fn()
+        elif t.kind == 'IDENT':
+            return self.parse_expr_stmt()
         raise ParseError(f"line {t.line}: unknown action '{t.value}'")
 
     def _peek_next(self):
@@ -415,19 +445,21 @@ class Parser:
         return WhenUnit(cond, actions, line=line)
 
     def parse_condition(self):
-        t = self.pop()  # 'item', 'number', or 'count'
-        target = t.value
-
-        if target == 'item':
-            cond = self.pop().value  # 'visible' or 'hidden'
-            return {'type': f'item_{cond}', 'target': 'item'}
-
-        elif target in ('number', 'count'):
-            op = self.expect('OP').value  # '=', '>', '<', '>=', '<='
-            val = int(self.expect('NUMBER').value)
-            return {'type': 'compare', 'target': target, 'operator': op, 'value': val}
-
-        raise ParseError(f"line {t.line}: expected 'item', 'number', or 'count', got '{t.value}'")
+        t = self.peek()
+        # Special semantic variables: item, number, count
+        if t.value in ('item', 'number', 'count'):
+            self.pop()
+            target = t.value
+            if target == 'item':
+                cond = self.pop().value  # 'visible' or 'hidden'
+                return {'type': f'item_{cond}', 'target': 'item'}
+            elif target in ('number', 'count'):
+                op = self.expect('OP').value
+                val = int(self.expect('NUMBER').value)
+                return {'type': 'compare', 'target': target, 'operator': op, 'value': val}
+        # General expression
+        expr = self.parse_expr()
+        return {'type': 'expr', 'expr': expr}
 
     def parse_get_number(self):
         line = self.pop().line  # 'get'
@@ -444,16 +476,113 @@ class Parser:
         selector = self.expect('STRING').value.strip('"')
         return Action('find_all', [selector], line=t.line)
 
+    # ── Variables & Functions ──
+
+    def parse_let(self):
+        line = self.pop().line  # 'let'
+        name = self.expect('IDENT').value
+        self.expect('OP', '=')
+        val = self.parse_expr()
+        return LetStatement(name, val, line=line)
+
+    def parse_fn(self):
+        line = self.pop().line  # 'fn'
+        name = self.expect('IDENT').value
+        params = []
+        while self.peek().kind == 'IDENT':
+            params.append(self.pop().value)
+            self.skip_newlines()
+        self.expect('KEYWORD', 'do')
+        actions = self.parse_actions()
+        self.expect('KEYWORD', 'done')
+        return FnDefinition(name, params, actions, line=line)
+
+    def parse_expr_stmt(self):
+        """Parse an expression used as a statement (bare expr or fn call)."""
+        line = self.peek().line
+        expr = self.parse_expr()
+        if expr.kind == 'call' or expr.kind == 'var' or expr.kind == 'bin':
+            return expr
+        return expr
+
+    # ── Expressions ──
+
+    def parse_expr(self):
+        return self.parse_compare()
+
+    def parse_compare(self):
+        left = self.parse_addsub()
+        while self.peek().kind == 'OP' and self.peek().value in ('>', '<', '>=', '<=', '==', '!='):
+            op = self.pop().value
+            right = self.parse_addsub()
+            left = Expr('bin', op=op, left=left, right=right, line=left.line)
+        return left
+
+    def parse_addsub(self):
+        left = self.parse_term()
+        while self.peek().kind == 'OP' and self.peek().value in ('+', '-', 'or', 'and'):
+            op = self.pop().value
+            right = self.parse_term()
+            left = Expr('bin', op=op, left=left, right=right, line=left.line)
+        return left
+
+    def parse_term(self):
+        left = self.parse_unary()
+        while self.peek().kind == 'OP' and self.peek().value in ('*', '/'):
+            op = self.pop().value
+            right = self.parse_unary()
+            left = Expr('bin', op=op, left=left, right=right, line=left.line)
+        return left
+
+    def parse_unary(self):
+        if self.peek().kind == 'OP' and self.peek().value == '-':
+            line = self.pop().line
+            right = self.parse_unary()
+            return Expr('bin', op='*', left=Expr('num', -1, line=line), right=right, line=line)
+        return self.parse_factor()
+
+    def parse_factor(self):
+        t = self.peek()
+        line = t.line
+
+        if t.kind == 'NUMBER':
+            self.pop()
+            return Expr('num', int(t.value), line=line)
+
+        elif t.kind == 'STRING':
+            self.pop()
+            return Expr('str', t.value.strip('"'), line=line)
+
+        elif t.kind == 'IDENT' or (t.kind == 'KEYWORD' and t.value in ('number', 'count', 'item')):
+            self.pop()
+            name = t.value
+            # Check if this is a function call (next token is an expression start)
+            if self.peek().kind in ('NUMBER', 'STRING', 'IDENT') or \
+               (self.peek().kind == 'KEYWORD' and self.peek().value in ('number', 'count', 'item')) or \
+               (self.peek().kind == 'OP' and self.peek().value == '-'):
+                args = [self.parse_expr()]
+                return Expr('call', name, args=args, line=line)
+            # Could be multiple args: after first expr, check for more
+            return Expr('var', name, line=line)
+
+        elif t.kind == 'OP' and t.value == '(':
+            self.pop()
+            expr = self.parse_expr()
+            self.expect('OP', ')')
+            return expr
+
+        elif self.peek().kind == 'OP' and self.peek().value == '-':
+            return self.parse_unary()
+
+        raise ParseError(f"line {t.line}: unexpected token '{t.value}' in expression")
+
     def parse_log_action(self):
         line = self.pop().line
-        t = self.peek()
-        if t.kind == 'STRING':
-            msg = self.pop().value.strip('"')
-        elif t.kind in ('KEYWORD', 'IDENT'):
-            msg = self.pop().value
-        else:
-            raise ParseError(f"line {t.line}: expected string or identifier for log")
-        return Action('log', [msg], line=line)
+        expr = self.parse_expr()
+        # For backward compatibility, if it's a simple string or ident, pass directly
+        if expr.kind == 'str':
+            return Action('log', [expr.value], line=line)
+        return Action('log_expr', [expr], line=line)
 
     def parse_optional_fallback(self):
         self.skip_newlines()
@@ -475,6 +604,20 @@ class Parser:
 # ──────────────────────────────────────────────
 # Pretty Printer (AST dump)
 # ──────────────────────────────────────────────
+
+def dump_expr(e: Expr) -> str:
+    if e.kind == 'num':
+        return str(e.value)
+    elif e.kind == 'str':
+        return f'"{e.value}"'
+    elif e.kind == 'var':
+        return e.value
+    elif e.kind == 'call':
+        return f"{e.value}({', '.join(dump_expr(a) for a in e.args)})"
+    elif e.kind == 'bin':
+        return f"({dump_expr(e.left)} {e.op} {dump_expr(e.right)})"
+    return '?'
+
 
 def dump(node, indent=0):
     pad = "  " * indent
@@ -532,6 +675,14 @@ def dump(node, indent=0):
         print(f"{pad}WatchUnit(path={node.path}) [line {node.line}]")
         for a in node.actions:
             dump(a, indent + 1)
+    elif isinstance(node, LetStatement):
+        print(f"{pad}Let({node.name} = {dump_expr(node.value)}) [line {node.line}]")
+    elif isinstance(node, FnDefinition):
+        print(f"{pad}Fn({node.name}({', '.join(node.params)})) [line {node.line}]")
+        for a in node.body:
+            dump(a, indent + 1)
+    elif isinstance(node, Expr):
+        print(f"{pad}{dump_expr(node)} [line {node.line}]")
     elif isinstance(node, Action):
         args_str = ", ".join(repr(a) if not isinstance(a, str) else a for a in node.args)
         fb = " [or fallback]" if node.fallback else ""

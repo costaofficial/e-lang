@@ -3,15 +3,58 @@ E — Runtime context
 """
 
 
+class Scope:
+    def __init__(self, parent=None):
+        self.vars = {}
+        self.fns = {}  # name -> FnDefinition
+        self.parent = parent
+
+    def get_var(self, name: str):
+        if name in self.vars:
+            return self.vars[name]
+        if self.parent:
+            return self.parent.get_var(name)
+        raise NameError(f"variable '{name}' not defined")
+
+    def set_var(self, name: str, value):
+        if name in self.vars:
+            self.vars[name] = value
+        elif self.parent:
+            self.parent.set_var(name, value)
+        else:
+            self.vars[name] = value
+
+    def def_var(self, name: str, value):
+        self.vars[name] = value
+
+    def def_fn(self, name: str, fn_def):
+        self.fns[name] = fn_def
+
+    def get_fn(self, name: str):
+        if name in self.fns:
+            return self.fns[name]
+        if self.parent:
+            return self.parent.get_fn(name)
+        raise NameError(f"function '{name}' not defined")
+
+
 class RuntimeContext:
     def __init__(self):
-        self.current_element = None   # set by find (single element)
-        self.current_object = None    # set by with
-        self.current_item = None      # generic current item (can be list from find all)
-        self.current_number = None    # numeric value from get number
-        self.current_count = 0        # count from find all
+        self.current_element = None
+        self.current_object = None
+        self.current_item = None
+        self.current_number = None
+        self.current_count = 0
         self.stop_flag = False
         self.object_stack = []
+        self.scope = Scope()  # global scope
+
+    def push_scope(self):
+        self.scope = Scope(parent=self.scope)
+
+    def pop_scope(self):
+        if self.scope.parent:
+            self.scope = self.scope.parent
 
     def push_object(self, obj):
         self.object_stack.append(self.current_object)
