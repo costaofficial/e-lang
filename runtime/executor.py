@@ -6,8 +6,8 @@ from .context import RuntimeContext
 from .drivers.base import Driver, DryDriver
 from .drivers.real import RealDriver
 from parser.parser_e import (
-    Program, TimeBlock, ScriptBlock, Schedule,
-    WithBlock, ObjectRef, RetryBlock, WatchBlock, WhenBlock, Action
+    Program, TimeUnit, ScriptUnit, Schedule,
+    WithUnit, ObjectRef, RetryUnit, WatchUnit, WhenUnit, Action
 )
 
 
@@ -38,22 +38,22 @@ class Executor:
                     break
                 self._run(block)
 
-        elif isinstance(node, TimeBlock):
+        elif isinstance(node, TimeUnit):
             self._exec_time_block(node)
 
-        elif isinstance(node, ScriptBlock):
+        elif isinstance(node, ScriptUnit):
             self._exec_script_block(node)
 
-        elif isinstance(node, WithBlock):
+        elif isinstance(node, WithUnit):
             self._exec_with_block(node)
 
-        elif isinstance(node, RetryBlock):
+        elif isinstance(node, RetryUnit):
             self._exec_retry_block(node)
 
-        elif isinstance(node, WatchBlock):
+        elif isinstance(node, WatchUnit):
             self._exec_watch_block(node)
 
-        elif isinstance(node, WhenBlock):
+        elif isinstance(node, WhenUnit):
             self._exec_when_block(node)
 
         elif isinstance(node, Action):
@@ -64,7 +64,7 @@ class Executor:
 
     # ── Error guard ──
 
-    def _safe(self, node, block_fallback=None):
+    def _safe(self, node, unit_fallback=None):
         """Execute node with fallback chain: local → block."""
         if self.ctx.should_stop:
             return
@@ -79,16 +79,16 @@ class Executor:
                 self.driver.log(f"  ↳ running LOCAL fallback", getattr(node, 'line', 0))
                 for fb in local_fb:
                     self._run(fb)
-            elif block_fallback:
-                self.driver.log(f"  ↳ running BLOCK fallback", getattr(node, 'line', 0))
-                for fb in block_fallback:
+            elif unit_fallback:
+                self.driver.log(f"  ↳ running UNIT fallback", getattr(node, 'line', 0))
+                for fb in unit_fallback:
                     self._run(fb)
             else:
                 raise
 
     # ── Block executors ──
 
-    def _exec_time_block(self, node: TimeBlock):
+    def _exec_time_block(self, node: TimeUnit):
         sched = node.schedule
         info = {
             'kind': sched.kind,
@@ -104,7 +104,7 @@ class Executor:
 
         self.driver.schedule_time_block(info, actions_fn, node.line)
 
-    def _exec_script_block(self, node: ScriptBlock):
+    def _exec_script_block(self, node: ScriptUnit):
         def actions_fn():
             for action in node.actions:
                 if self.ctx.should_stop:
@@ -113,7 +113,7 @@ class Executor:
 
         self.driver.run_script_block(actions_fn, node.line)
 
-    def _exec_with_block(self, node: WithBlock):
+    def _exec_with_block(self, node: WithUnit):
         self.ctx.push_object(node.object)
         try:
             if node.object.kind == 'file':
@@ -138,7 +138,7 @@ class Executor:
                 self.driver.browser_stop(node.line)
             self.ctx.pop_object()
 
-    def _exec_retry_block(self, node: RetryBlock):
+    def _exec_retry_block(self, node: RetryUnit):
         last_error = None
         for attempt in range(1, node.times + 1):
             if self.ctx.should_stop:
@@ -162,7 +162,7 @@ class Executor:
         elif last_error:
             raise EError(f"retry {node.times}x exhausted", node.line)
 
-    def _exec_watch_block(self, node: WatchBlock):
+    def _exec_watch_block(self, node: WatchUnit):
         self.driver.log(f"👀 Watch: '{node.path}' (simulated — running once)", node.line)
         for action in node.actions:
             if self.ctx.should_stop:
@@ -177,23 +177,23 @@ class Executor:
             return int(config[:-1]) * 1000
         return int(config) * 1000
 
-    def _exec_when_block(self, node: WhenBlock):
+    def _exec_when_block(self, node: WhenUnit):
         result = self.driver.evaluate_condition(node.condition, self.ctx, node.line)
         if result:
-            self.driver.log(f"  ➡️ condition true, executing block", node.line)
+            self.driver.log(f"  ➡️ condition true, executing unit", node.line)
             for action in node.actions:
                 if self.ctx.should_stop:
                     break
                 self._safe(action, node.fallback)
         else:
-            self.driver.log(f"  ➡️ condition false, skipping block", node.line)
+            self.driver.log(f"  ➡️ condition false, skipping unit", node.line)
 
     def _exec_action_list_safe(self, actions):
         """Execute actions, propagating only errors without local fallback."""
         for action in actions:
             if self.ctx.should_stop:
                 break
-            self._safe(action, block_fallback=None)
+            self._safe(action, unit_fallback=None)
 
     # ── Action dispatch ──
 

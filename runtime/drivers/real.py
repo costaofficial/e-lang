@@ -30,7 +30,7 @@ class RealDriver(Driver):
             self.scheduler.start()
             self.log("  ⚙️ Scheduler started")
         except ImportError:
-            self.log("  ⚠️ APScheduler not installed — time blocks will run immediately")
+            self.log("  ⚠️ APScheduler not installed — time units will run immediately")
             self.log("    Install: pip install apscheduler")
             self.scheduler = None
 
@@ -99,7 +99,7 @@ class RealDriver(Driver):
                 actions_fn()
 
     def run_script_block(self, actions_fn, line: int):
-        self.log("▶️ Script block", line)
+        self.log("▶️ Script", line)
         actions_fn()
 
     # ── Browser lifecycle ──

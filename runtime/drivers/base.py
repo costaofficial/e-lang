@@ -27,11 +27,11 @@ class Driver(ABC):
 
     @abstractmethod
     def browser_start(self, line: int):
-        """Entering a 'with browser' block."""
+        """Entering a 'with browser' unit."""
 
     @abstractmethod
     def browser_stop(self, line: int):
-        """Exiting a 'with browser' block."""
+        """Exiting a 'with browser' unit."""
 
     # ── Browser actions ──
 
@@ -113,12 +113,12 @@ class Driver(ABC):
 
     @abstractmethod
     def schedule_time_block(self, schedule_info: dict, actions_fn, line: int):
-        """Schedule a time block for execution. actions_fn is a callable."""
+        """Schedule a time unit for execution. actions_fn is a callable."""
         ...
 
     @abstractmethod
     def run_script_block(self, actions_fn, line: int):
-        """Run a script block immediately."""
+        """Run a script unit immediately."""
         ...
 
 
@@ -225,5 +225,5 @@ class DryDriver(Driver):
         actions_fn()
 
     def run_script_block(self, actions_fn, line: int):
-        self.log("▶️ Script block (dry-run)", line)
+        self.log("▶️ Script (dry-run)", line)
         actions_fn()

@@ -31,11 +31,11 @@ Core principles:
 
 ## 3. Programs
 
-A program is a sequence of **statement blocks**:
+A program is a sequence of **statement units**:
 
 ```
-program    = { statement_block } ;
-statement_block = time_block | script_block ;
+program    = { statement_unit } ;
+statement_unit = time_unit | script_unit ;
 ```
 
 ---
@@ -45,7 +45,7 @@ statement_block = time_block | script_block ;
 **Purpose:** Run code at specific times.
 
 ```
-time_block = "time", schedule, "do", actions, "done", [ "or", fallback ] ;
+time_unit = "time", schedule, "do", actions, "done", [ "or", fallback ] ;
 
 schedule   = "every", interval, [ "at", time ]
            | "at", time
@@ -84,7 +84,7 @@ done
 **Purpose:** Run code right now, no scheduling.
 
 ```
-script_block = "do", actions, "done", [ "or", fallback ] ;
+script_unit = "do", actions, "done", [ "or", fallback ] ;
 ```
 
 **Example:**
@@ -98,12 +98,12 @@ done or log error
 
 ---
 
-## 6. Context blocks (`with`)
+## 6. Context units (`with`)
 
 **Purpose:** Set the scope/object for inner actions.
 
 ```
-with_block = "with", object, [ "{", config, "}" ], "do", actions, "done" ;
+with_unit = "with", object, [ "{", config, "}" ], "do", actions, "done" ;
 
 object    = "file", string
           | "browser"
@@ -157,7 +157,7 @@ All available actions:
 | `upload` | `upload to "url" file "x"` | Uploads file |
 | `create` | `create "name"` | Creates file |
 | `log` | `log "message"` | Prints message |
-| `stop` | `stop` | Halts current block |
+| `stop` | `stop` | Halts current unit |
 | `wait download` | `wait download` | Waits for download |
 | `wait until` | `wait until visible "sel"` | Waits for element state |
 
@@ -168,7 +168,7 @@ All available actions:
 **Purpose:** Execute actions only when a condition is true.
 
 ```
-when_block = "when", condition, "do", actions, "done" ;
+when_unit = "when", condition, "do", actions, "done" ;
 
 condition = "item", ("visible" | "hidden")
           | ("number" | "count"), ("=" | ">" | "<" | ">=" | "<="), number
@@ -209,10 +209,10 @@ done
 
 ## 9. Retry
 
-**Purpose:** Retry a block of actions on failure.
+**Purpose:** Retry a unit of actions on failure.
 
 ```
-retry_block = "retry", number, "times", "do", actions, "done" ;
+retry_unit = "retry", number, "times", "do", actions, "done" ;
 ```
 
 **Example:**
@@ -258,7 +258,7 @@ wait download
 **Purpose:** React to filesystem changes.
 
 ```
-watch_block = "watch", string, "do", actions, "done" ;
+watch_unit = "watch", string, "do", actions, "done" ;
 ```
 
 **Example:**
@@ -299,7 +299,7 @@ login "user" "pass" or do
     stop
 done
 
-// block fallback (global on time block)
+// block fallback (global on time unit)
 time every day at 02:00 do
     ...
 done or log error
@@ -307,7 +307,7 @@ done or log error
 
 **Fallback chain:**
 1. Local fallback on the action itself
-2. Block-level fallback (e.g., on `time` / `do`)
+2. Unit-level fallback (e.g., on `time` / `do`)
 3. Error propagates up if neither exists
 
 ---
@@ -346,7 +346,7 @@ Driver (interface)
 | Dry-run mode | ✅ Complete | Logs everything, no side-effects |
 | Live mode | ✅ Complete | Actually executes |
 | `time` scheduler | ✅ Complete | APScheduler |
-| `do` script blocks | ✅ Complete | Immediate execution |
+| `do` script units | ✅ Complete | Immediate execution |
 | `with` context | ✅ Complete | File, browser, page |
 | `find` / `click` | ✅ Complete | Playwright |
 | `find all` / `count` | ✅ Complete | Playwright |

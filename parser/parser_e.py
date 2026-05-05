@@ -22,14 +22,14 @@ class Program:
     blocks: list
 
 @dataclass
-class TimeBlock:
+class TimeUnit:
     schedule: 'Schedule'
     actions: list
     fallback: Optional = None
     line: int = 0
 
 @dataclass
-class ScriptBlock:
+class ScriptUnit:
     actions: list
     fallback: Optional = None
     line: int = 0
@@ -42,7 +42,7 @@ class Schedule:
     line: int = 0
 
 @dataclass
-class WithBlock:
+class WithUnit:
     object: 'ObjectRef'
     config: Optional = None
     actions: list = field(default_factory=list)
@@ -56,21 +56,21 @@ class ObjectRef:
     line: int = 0
 
 @dataclass
-class RetryBlock:
+class RetryUnit:
     times: int
     actions: list
     fallback: Optional = None
     line: int = 0
 
 @dataclass
-class WatchBlock:
+class WatchUnit:
     path: str
     actions: list
     fallback: Optional = None
     line: int = 0
 
 @dataclass
-class WhenBlock:
+class WhenUnit:
     condition: dict
     actions: list
     fallback: Optional = None
@@ -210,7 +210,7 @@ class Parser:
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
         fallback = self.parse_optional_fallback()
-        return TimeBlock(sched, actions, fallback, line=line)
+        return TimeUnit(sched, actions, fallback, line=line)
 
     def parse_schedule(self):
         t = self.peek()
@@ -242,7 +242,7 @@ class Parser:
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
         fallback = self.parse_optional_fallback()
-        return ScriptBlock(actions, fallback, line=line)
+        return ScriptUnit(actions, fallback, line=line)
 
     def parse_actions(self):
         actions = []
@@ -325,7 +325,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return WithBlock(obj, config, actions, line=line)
+        return WithUnit(obj, config, actions, line=line)
 
     def parse_object(self):
         t = self.pop()
@@ -343,7 +343,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return RetryBlock(n, actions, line=line)
+        return RetryUnit(n, actions, line=line)
 
     def parse_watch_block(self):
         line = self.pop().line
@@ -351,7 +351,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return WatchBlock(path, actions, line=line)
+        return WatchUnit(path, actions, line=line)
 
     def parse_wait_statement(self):
         line = self.pop().line
@@ -412,7 +412,7 @@ class Parser:
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
-        return WhenBlock(cond, actions, line=line)
+        return WhenUnit(cond, actions, line=line)
 
     def parse_condition(self):
         t = self.pop()  # 'item', 'number', or 'count'
@@ -482,8 +482,8 @@ def dump(node, indent=0):
         print(f"{pad}Program")
         for b in node.blocks:
             dump(b, indent + 1)
-    elif isinstance(node, TimeBlock):
-        print(f"{pad}TimeBlock [line {node.line}]")
+    elif isinstance(node, TimeUnit):
+        print(f"{pad}TimeUnit [line {node.line}]")
         dump(node.schedule, indent + 1)
         print(f"{pad}  Actions:")
         for a in node.actions:
@@ -492,8 +492,8 @@ def dump(node, indent=0):
             print(f"{pad}  Fallback:")
             for f in node.fallback:
                 dump(f, indent + 2)
-    elif isinstance(node, ScriptBlock):
-        print(f"{pad}ScriptBlock [line {node.line}]")
+    elif isinstance(node, ScriptUnit):
+        print(f"{pad}ScriptUnit [line {node.line}]")
         print(f"{pad}  Actions:")
         for a in node.actions:
             dump(a, indent + 2)
@@ -503,24 +503,24 @@ def dump(node, indent=0):
                 dump(f, indent + 2)
     elif isinstance(node, Schedule):
         print(f"{pad}Schedule({node.kind}, interval={node.interval}, time={node.time})")
-    elif isinstance(node, WithBlock):
-        print(f"{pad}WithBlock [line {node.line}] config={node.config}")
+    elif isinstance(node, WithUnit):
+        print(f"{pad}WithUnit [line {node.line}] config={node.config}")
         dump(node.object, indent + 1)
         print(f"{pad}  Actions:")
         for a in node.actions:
             dump(a, indent + 2)
     elif isinstance(node, ObjectRef):
         print(f"{pad}Object({node.kind}, {node.value})")
-    elif isinstance(node, RetryBlock):
-        print(f"{pad}RetryBlock({node.times}x) [line {node.line}]")
+    elif isinstance(node, RetryUnit):
+        print(f"{pad}RetryUnit({node.times}x) [line {node.line}]")
         for a in node.actions:
             dump(a, indent + 1)
         if node.fallback:
             print(f"{pad}  Fallback:")
             for f in node.fallback:
                 dump(f, indent + 2)
-    elif isinstance(node, WhenBlock):
-        print(f"{pad}WhenBlock({node.condition}) [line {node.line}]")
+    elif isinstance(node, WhenUnit):
+        print(f"{pad}WhenUnit({node.condition}) [line {node.line}]")
         print(f"{pad}  Actions:")
         for a in node.actions:
             dump(a, indent + 2)
@@ -528,8 +528,8 @@ def dump(node, indent=0):
             print(f"{pad}  Fallback:")
             for f in node.fallback:
                 dump(f, indent + 2)
-    elif isinstance(node, WatchBlock):
-        print(f"{pad}WatchBlock(path={node.path}) [line {node.line}]")
+    elif isinstance(node, WatchUnit):
+        print(f"{pad}WatchUnit(path={node.path}) [line {node.line}]")
         for a in node.actions:
             dump(a, indent + 1)
     elif isinstance(node, Action):

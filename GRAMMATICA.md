@@ -5,7 +5,7 @@
 ## 1) Program
 
 ```
-program    = { statement_block } ;
+program    = { statement_unit } ;
 ```
 
 ---
@@ -13,7 +13,7 @@ program    = { statement_block } ;
 ## 2) Statement blocks
 
 ```
-statement_block = time_block | script_block ;
+statement_unit = time_unit | script_unit ;
 ```
 
 ---
@@ -21,7 +21,7 @@ statement_block = time_block | script_block ;
 ## 3) Time block
 
 ```
-time_block = "time", schedule, "do", actions, "done", [ "or", fallback ] ;
+time_unit = "time", schedule, "do", actions, "done", [ "or", fallback ] ;
 
 schedule   = "every", interval, [ "at", time ]
            | "at", time
@@ -38,7 +38,7 @@ minute     = number ;  (* 0-59 *)
 ## 4) Script block (immediate)
 
 ```
-script_block = "do", actions, "done", [ "or", fallback ] ;
+script_unit = "do", actions, "done", [ "or", fallback ] ;
 ```
 
 ---
@@ -57,17 +57,17 @@ actions   = { statement } ;  (* sequential *)
 statement = core_statement, [ "or", fallback ] ;
 
 core_statement =
-      with_block
-    | retry_block
+      with_unit
+    | retry_unit
     | wait_statement
-    | watch_block
+    | watch_unit
     | login_statement
     | stop_statement
     | write_action
     | transfer_action
     | ui_action
     | log_action
-    | when_block
+    | when_unit
     | get_number_action
     | find_all_action
     ;
@@ -78,7 +78,7 @@ core_statement =
 ## 7) When block
 
 ```
-when_block = "when", condition, "do", actions, "done" ;
+when_unit = "when", condition, "do", actions, "done" ;
 
 condition = "item", ("visible" | "hidden")
           | ("number" | "count"), ("=" | ">" | "<" | ">=" | "<="), number
@@ -128,7 +128,7 @@ simple_fallback = log_action | stop_statement ;
 ## 8) With block (sets current object)
 
 ```
-with_block = "with", object, [ "{", config, "}" ], "do", actions, "done" ;
+with_unit = "with", object, [ "{", config, "}" ], "do", actions, "done" ;
 
 object    = "file", string
           | "browser"
@@ -184,7 +184,7 @@ target = string ;
 ## 14) Retry block
 
 ```
-retry_block = "retry", number, "times", "do", actions, "done" ;
+retry_unit = "retry", number, "times", "do", actions, "done" ;
 ```
 
 ---
@@ -206,7 +206,7 @@ condition    = "visible", selector
 ## 16) Watch block
 
 ```
-watch_block = "watch", string, "do", actions, "done" ;
+watch_unit = "watch", string, "do", actions, "done" ;
 ```
 
 (string = path to watch)
