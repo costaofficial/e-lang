@@ -1,2 +1,0 @@
-[console_scripts]
-e = runtime.run_e:main

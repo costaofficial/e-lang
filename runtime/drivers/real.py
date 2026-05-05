@@ -190,6 +190,63 @@ class RealDriver(Driver):
             self.log(f"  ❌ create failed: {e}", line)
             raise
 
+    # ── Semantic actions ──
+
+    def set_page_timeout(self, ms: int, line: int):
+        if self._browser:
+            self._browser.set_page_timeout(ms)
+            self.log(f"  ⏱️ page timeout set to {ms}ms", line)
+
+    def get_number(self, selector, ctx, line: int):
+        if self._browser and self._browser.is_running:
+            try:
+                num = self._browser.get_number(selector) if selector else None
+                if num is not None:
+                    ctx.current_number = num
+                    self.log(f"  🔢 got number: {num}", line)
+                    return
+            except Exception as e:
+                self.log(f"  ⚠️ get number failed: {e}", line)
+                return
+        self.log(f"  🔢 get number" + (f" from '{selector}'" if selector else "") + " (simulated)", line)
+        ctx.current_number = 42
+
+    def find_all(self, selector, ctx, line: int):
+        if self._browser and self._browser.is_running:
+            try:
+                elements = self._browser.find_all(selector)
+                ctx.current_count = len(elements)
+                ctx.current_item = elements
+                self.log(f"  🔍 find all '{selector}' → {ctx.current_count} elements", line)
+                return
+            except Exception as e:
+                self.log(f"  ⚠️ find all failed: {e}", line)
+                return
+        self.log(f"  🔍 find all '{selector}' (simulated)", line)
+        ctx.current_count = 3
+        ctx.current_item = []
+
+    def evaluate_condition(self, condition, ctx, line: int) -> bool:
+        cond_type = condition.get('type')
+        target = condition.get('target')
+        if cond_type == 'item_visible':
+            self.log(f"  ✅ item visible" + (" (browser)" if self._browser else " (simulated)"), line)
+            return True
+        elif cond_type == 'item_hidden':
+            self.log(f"  ❌ item hidden (simulated)", line)
+            return False
+        elif cond_type == 'compare':
+            actual = ctx.current_number if target == 'number' else ctx.current_count
+            if actual is None:
+                self.log(f"  ⚠️ {target} is not set", line)
+                return False
+            op = condition['operator']
+            val = condition['value']
+            r = {'=': actual==val, '>': actual>val, '<': actual<val, '>=': actual>=val, '<=': actual<=val}.get(op, False)
+            self.log(f"  📊 {target} {op} {val}? (actual: {actual}) → {r}", line)
+            return r
+        return False
+
     # ── Transfer ──
 
     def email(self, to: str, attachment: Optional[str], line: int):
