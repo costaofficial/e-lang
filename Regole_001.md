@@ -288,7 +288,7 @@ Operating system
 ```rust
 time every day at 02:00 do
     with browser do
-        open "https://connect.garmin.com"
+        open "https://connect.api"
 
         with page { timeout: 10s } do
             login "user" "password" or stop

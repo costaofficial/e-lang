@@ -94,7 +94,7 @@ pre .s { color: #bbb; }
 <pre><span class="c">// every day at 2am — export & notify</span>
 <span class="k">time</span> every day <span class="k">at</span> 02:00 <span class="k">do</span>
     <span class="k">with</span> browser <span class="k">do</span>
-        <span class="k">open</span> <span class="s">"https://connect.garmin.com"</span>
+        <span class="k">open</span> <span class="s">"https://connect.api"</span>
         <span class="k">with</span> page { timeout: 10s } <span class="k">do</span>
             login <span class="s">"user"</span> <span class="s">"pass"</span> <span class="k">or</span> stop
             click <span class="s">"#export-all"</span>

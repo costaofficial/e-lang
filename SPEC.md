@@ -373,9 +373,9 @@ Driver (interface)
 ```e
 // Weekly report — every day at 2am
 time every day at 02:00 do
-    // 1. Extract data from Garmin
+    // 1. Extract data from server
     with browser do
-        open "https://connect.garmin.com"
+        open "https://connect.api"
         with page { timeout: 10s } do
             login "user" "password" or stop
             click "#export-all"

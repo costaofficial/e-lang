@@ -8,7 +8,7 @@ Scripts. Backend. Automation. Whatever you need.
 ```rust
 time every day at 02:00 do
     with browser do
-        open "https://connect.garmin.com"
+        open "https://connect.api"
         with page { timeout: 10s } do
             login "user" "pass" or stop
             click "#export-all"
@@ -36,7 +36,7 @@ python3 runtime/run_e.py --live examples/backup.e
 | `examples/backup.e` | Writes a file, emails it |
 | `examples/login.e` | Retry logic with fallback |
 | `examples/download.e` | Browser automation pipeline |
-| `examples/garmin.e` | Full automation script |
+| `examples/dashboard.e` | Full automation script |
 
 ## Grammar
 
@@ -65,7 +65,7 @@ v0.2 — live execution enabled.
 
 ```bash
 python3 runtime/run_e.py examples/hello.e          # dry-run
-python3 runtime/run_e.py --live examples/garmin.e  # live
+python3 runtime/run_e.py --live examples/dashboard.e  # live
 
 # optional: browser automation
 pip install playwright
@@ -80,7 +80,7 @@ playwright install chromium
 | `examples/backup.e` | Writes a file, emails it |
 | `examples/login.e` | Retry logic with fallback |
 | `examples/download.e` | Browser pipeline |
-| `examples/garmin.e` | Full script |
+| `examples/dashboard.e` | Full script |
 | `examples/browser_demo.e` | Live browser demo |
 | `examples/demo_live.e` | Live file + subprocess |
 
