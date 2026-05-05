@@ -7,7 +7,7 @@ from .drivers.base import Driver, DryDriver
 from .drivers.real import RealDriver
 from parser.main import (
     Program, TimeNode, ScriptNode, Schedule,
-    WithNode, ObjectRef, RetryNode, WatchNode, WhenNode, Action,
+    WithNode, ObjectRef, RetryNode, WatchNode, WhenNode, WhileNode, Action,
     LetStatement, FnDefinition, ForStatement, UseStatement,
     Expr, dump_expr,
 )
@@ -63,6 +63,9 @@ class Executor:
 
         elif isinstance(node, WhenNode):
             self._exec_when_block(node)
+
+        elif isinstance(node, WhileNode):
+            self._exec_while(node)
 
         elif isinstance(node, Action):
             self._exec_action(node)
@@ -262,6 +265,28 @@ class Executor:
         else:
             self.driver.log(f"  ➡️ condition false, skipping unit", node.line)
 
+    # ── While ──
+
+    def _exec_while(self, node: WhileNode):
+        import time
+        max_iter = 10000
+        iterations = 0
+        while not self.ctx.should_stop:
+            cond = node.condition
+            if cond.get('type') == 'expr':
+                result = self._eval_expr(cond['expr'])
+            else:
+                result = self.driver.evaluate_condition(cond, self.ctx, node.line)
+            if not result:
+                break
+            iterations += 1
+            if iterations > max_iter:
+                raise EError("while loop exceeded 10000 iterations", node.line)
+            for action in node.body:
+                if self.ctx.should_stop:
+                    break
+                self._safe(action, node.fallback)
+
     # ── Expression evaluation ──
 
     def _eval_expr(self, expr: Expr):
@@ -269,6 +294,20 @@ class Executor:
             return expr.value
         elif expr.kind == 'str':
             return expr.value
+        elif expr.kind == 'len':
+            val = self._eval_expr(expr.value)
+            return len(val)
+
+        elif expr.kind == 'slice':
+            container = self._eval_expr(expr.left)
+            start = self._eval_expr(expr.args[0]) if expr.args else 0
+            end = self._eval_expr(expr.right) if expr.right else len(container)
+            return container[start:end]
+
+        elif expr.kind == 'not':
+            val = self._eval_expr(expr.value)
+            return not val
+
         elif expr.kind == 'run':
             import subprocess
             cmd = expr.value

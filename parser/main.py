@@ -110,6 +110,13 @@ class UseStatement:
     line: int = 0
 
 @dataclass
+class WhileNode:
+    condition: dict   # same format as WhenNode condition
+    body: list
+    fallback: Optional = None
+    line: int = 0
+
+@dataclass
 class Expr:
     kind: str   # 'num' | 'str' | 'var' | 'call' | 'bin'
     value: any = None
@@ -131,10 +138,11 @@ KEYWORDS = {
     'click', 'find', 'log',
     'file', 'browser', 'page', 'app',
     'visible', 'hidden', 'download', 'to',
-    's', 'ms', 'timeout',
+    'timeout',
     'when', 'all', 'get', 'from', 'number', 'item', 'count',
     'let', 'fn', 'run', 'read', 'ls',
     'for', 'in', 'use', 'append',
+    'while', 'len', 'not',
 }
 
 TOKEN_SPEC = [
@@ -142,7 +150,8 @@ TOKEN_SPEC = [
     ('STRING',    r'"[^"]*"'),
     ('NUMBER',    r'\d+'),
     ('IDENT',     r'[a-zA-Z_][a-zA-Z0-9_]*'),
-    ('OP',        r'>=|<=|>|<|==|!=|=|\+|\-|\*|/|\.'),
+    ('DOTDOT',    r'\.\.'),
+    ('OP',        r'>=|<=|>|<|==|!=|=|\+|\-|\*|/|\.|\(|\)'),
     ('LBRACKET',  r'\['),
     ('RBRACKET',  r'\]'),
     ('COMMA',     r','),
@@ -340,6 +349,8 @@ class Parser:
             return self.parse_simple_action()
         elif t.value == 'when':
             return self.parse_when_block()
+        elif t.value == 'while':
+            return self.parse_while()
         elif t.value == 'get' and self._peek_next().value == 'number':
             return self.parse_get_number()
         elif t.value == 'let':
@@ -377,7 +388,7 @@ class Parser:
             self.expect('COLON', ':')
             dur = self.pop()
             config = dur.value
-            if self.peek().kind == 'KEYWORD' and self.peek().value in ('s', 'ms'):
+            if self.peek().kind in ('IDENT', 'KEYWORD') and self.peek().value in ('s', 'ms'):
                 config += self.pop().value
             self.expect('RBRACE', '}')
         self.expect('KEYWORD', 'do')
@@ -467,10 +478,20 @@ class Parser:
     def parse_when_block(self):
         line = self.pop().line  # 'when'
         cond = self.parse_condition()
+        self.skip_newlines()
         self.expect('KEYWORD', 'do')
         actions = self.parse_actions()
         self.expect('KEYWORD', 'done')
         return WhenNode(cond, actions, line=line)
+
+    def parse_while(self):
+        line = self.pop().line  # 'while'
+        cond = self.parse_condition()
+        self.skip_newlines()
+        self.expect('KEYWORD', 'do')
+        actions = self.parse_actions()
+        self.expect('KEYWORD', 'done')
+        return WhileNode(cond, actions, line=line)
 
     def parse_condition(self):
         t = self.peek()
@@ -567,6 +588,10 @@ class Parser:
             line = self.pop().line
             right = self.parse_unary()
             return Expr('bin', op='*', left=Expr('num', -1, line=line), right=right, line=line)
+        if self.peek().value == 'not':
+            line = self.pop().line
+            right = self.parse_unary()
+            return Expr('not', right, line=line)
         return self.parse_factor()
 
     def parse_factor(self):
@@ -607,6 +632,11 @@ class Parser:
             path = self.expect('STRING').value.strip('"')
             result = Expr('read', path, line=line)
 
+        elif t.value == 'len':
+            self.pop()
+            arg = self.parse_expr()
+            result = Expr('len', arg, line=line)
+
         elif t.value == 'ls':
             self.pop()
             pattern = '*'
@@ -636,13 +666,19 @@ class Parser:
         else:
             raise ParseError(f"line {t.line}: unexpected token '{t.value}' in expression")
 
-        # Postfix: indexing [n] and method calls .method
+        # Postfix: indexing [n], slicing [n..m], method calls .method
         while result is not None:
             if self.peek().kind == 'LBRACKET':
                 self.pop()
-                index = self.parse_expr()
-                self.expect('RBRACKET', ']')
-                result = Expr('index', left=result, right=index, line=line)
+                start = self.parse_expr()
+                if self.peek().kind == 'DOTDOT':
+                    self.pop()
+                    end = self.parse_expr()
+                    self.expect('RBRACKET', ']')
+                    result = Expr('slice', left=result, right=end, args=[start], line=line)
+                else:
+                    self.expect('RBRACKET', ']')
+                    result = Expr('index', left=result, right=start, line=line)
             elif self.peek().kind == 'OP' and self.peek().value == '.':
                 self.pop()
                 t = self.pop()
@@ -735,8 +771,16 @@ def dump_expr(e: Expr) -> str:
         return '[' + ', '.join(dump_expr(x) for x in e.value) + ']'
     elif e.kind == 'index':
         return f"{dump_expr(e.left)}[{dump_expr(e.right)}]"
+    elif e.kind == 'slice':
+        start = dump_expr(e.args[0]) if e.args else ''
+        end = dump_expr(e.right) if e.right else ''
+        return f"{dump_expr(e.left)}[{start}..{end}]"
     elif e.kind == 'method':
         return f"{dump_expr(e.left)}.{e.value}({', '.join(dump_expr(a) for a in e.args)})"
+    elif e.kind == 'len':
+        return f"len({dump_expr(e.value)})"
+    elif e.kind == 'not':
+        return f"not({dump_expr(e.value)})"
     return '?'
 
 
@@ -796,6 +840,14 @@ def dump(node, indent=0):
         print(f"{pad}WatchNode(path={node.path}) [line {node.line}]")
         for a in node.actions:
             dump(a, indent + 1)
+    elif isinstance(node, WhileNode):
+        print(f"{pad}WhileNode({node.condition}) [line {node.line}]")
+        for a in node.body:
+            dump(a, indent + 1)
+        if node.fallback:
+            print(f"{pad}  Fallback:")
+            for f in node.fallback:
+                dump(f, indent + 2)
     elif isinstance(node, LetStatement):
         print(f"{pad}Let({node.name} = {dump_expr(node.value)}) [line {node.line}]")
     elif isinstance(node, FnDefinition):
