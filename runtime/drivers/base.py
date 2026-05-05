@@ -73,6 +73,12 @@ class Driver(ABC):
     def login(self, user: str, password: str, line: int):
         ...
 
+    # ── Browser config ──
+
+    @abstractmethod
+    def set_page_timeout(self, ms: int, line: int):
+        ...
+
     # ── Wait ──
 
     @abstractmethod
@@ -116,6 +122,9 @@ class DryDriver(Driver):
 
     def browser_stop(self, line: int):
         pass
+
+    def set_page_timeout(self, ms: int, line: int):
+        self.log(f"  ⏱️ page timeout set to {ms}ms", line)
 
     def open(self, url: str, line: int):
         self.log(f"  🌐 open '{url}'", line)

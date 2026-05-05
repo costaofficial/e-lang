@@ -120,6 +120,9 @@ class Executor:
                 self.driver.browser_start(node.line)
             elif node.object.kind == 'page':
                 self.driver.log(f"📄 Context: page", node.line)
+                if node.config:
+                    ms = self._parse_timeout(node.config)
+                    self.driver.set_page_timeout(ms, node.line)
             elif node.object.kind == 'app':
                 self.driver.log(f"📱 Context: app '{node.object.value}'", node.line)
 
@@ -162,6 +165,14 @@ class Executor:
             if self.ctx.should_stop:
                 break
             self._safe(action, node.fallback)
+
+    @staticmethod
+    def _parse_timeout(config: str) -> int:
+        if config.endswith('ms'):
+            return int(config[:-2])
+        if config.endswith('s'):
+            return int(config[:-1]) * 1000
+        return int(config) * 1000
 
     def _exec_action_list_safe(self, actions):
         """Execute actions, propagating only errors without local fallback."""

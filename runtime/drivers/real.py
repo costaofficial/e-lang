@@ -204,6 +204,13 @@ class RealDriver(Driver):
     def login(self, user: str, password: str, line: int):
         self.log(f"  🔐 login '{user}' / '{'*' * len(password)}' (NOT IMPLEMENTED — install Playwright)", line)
 
+    # ── Browser config ──
+
+    def set_page_timeout(self, ms: int, line: int):
+        if self._browser:
+            self._browser.set_page_timeout(ms)
+            self.log(f"  ⏱️ page timeout set to {ms}ms", line)
+
     # ── Wait ──
 
     def wait_download(self, line: int):
@@ -212,7 +219,15 @@ class RealDriver(Driver):
         self.log(f"  ✅ download complete (simulated)", line)
 
     def wait_until(self, condition: str, selector: str, line: int):
-        self.log(f"  ⏳ wait until {condition} '{selector}'... (NOT IMPLEMENTED)", line)
+        if self._browser and self._browser.is_running:
+            try:
+                self._browser.wait_until(condition, selector)
+                self.log(f"  ⏳ wait until {condition} '{selector}'... ✅", line)
+                return
+            except Exception as e:
+                self.log(f"  ⚠️ wait failed: {e}", line)
+                raise RuntimeError(f"element not {condition}: '{selector}'") from e
+        self.log(f"  ⏳ wait until {condition} '{selector}'... (simulated)", line)
         time.sleep(1)
         self.log(f"  ✅ condition assumed met (simulated)", line)
 

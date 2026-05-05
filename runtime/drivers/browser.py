@@ -1,14 +1,14 @@
 """
 E Browser Driver — Playwright wrapper
 ======================================
-Minimal surface: open, find, click.
+Surface: open, find, click, wait_until.
 
 Usage:
-    from .browser import BrowserDriver
     b = BrowserDriver()
     b.open("https://example.com")
     b.find("#login")
     b.click()
+    b.wait_until("visible", "#chart", timeout=10000)
     b.close()
 """
 
@@ -22,6 +22,7 @@ class BrowserDriver:
         self._context = None
         self._page = None
         self._current_element = None
+        self._page_timeout = 10000
 
     # ── Lifecycle ──
 
@@ -31,6 +32,7 @@ class BrowserDriver:
             self._playwright = sync_playwright().__enter__()
             self._browser = self._playwright.chromium.launch(headless=False)
             self._context = self._browser.new_context()
+            self._page = None
         except ImportError:
             raise RuntimeError(
                 "Playwright not installed.\n"
@@ -52,6 +54,9 @@ class BrowserDriver:
         self._page = None
         self._current_element = None
 
+    def set_page_timeout(self, ms: int):
+        self._page_timeout = ms
+
     # ── Actions ──
 
     def open(self, url: str):
@@ -64,7 +69,7 @@ class BrowserDriver:
     def find(self, selector: str):
         if not self._page:
             raise RuntimeError("No page open. Use open() first.")
-        self._page.wait_for_selector(selector, state="attached", timeout=10000)
+        self._page.wait_for_selector(selector, state="attached", timeout=self._page_timeout)
         self._current_element = selector
         return selector
 
@@ -74,7 +79,22 @@ class BrowserDriver:
             raise RuntimeError("No selector and no current element. Use find() first.")
         if not self._page:
             raise RuntimeError("No page open. Use open() first.")
-        self._page.click(target)
+        loc = self._page.locator(target)
+        loc.wait_for(state="visible", timeout=self._page_timeout)
+        loc.click()
+
+    def wait_until(self, condition: str, selector: str):
+        if not self._page:
+            raise RuntimeError("No page open. Use open() first.")
+        state_map = {
+            "visible": "visible",
+            "hidden": "hidden",
+        }
+        state = state_map.get(condition)
+        if not state:
+            raise ValueError(f"Unknown condition: '{condition}'. Use 'visible' or 'hidden'.")
+        loc = self._page.locator(selector)
+        loc.wait_for(state=state, timeout=self._page_timeout)
 
     @property
     def page(self):
