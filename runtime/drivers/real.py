@@ -2,9 +2,9 @@
 E RealDriver — actually executes actions
 =========================================
 
-Step 1: Scheduler + Log (working)
-Step 2: File + subprocess (working)
-Step 3: Browser — open/find/click via Playwright (working)
+Step 1: Scheduler + Log
+Step 2: File + subprocess
+Step 3: Browser — open/find/click/wait via Playwright
 Step 4+: Stubs with clear "NOT IMPLEMENTED" messages
 """
 

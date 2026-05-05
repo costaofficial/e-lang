@@ -1,6 +1,6 @@
 """
-E Browser Driver — Playwright wrapper
-======================================
+E — Browser Driver (Playwright wrapper)
+=========================================
 Surface: open, find, click, wait_until.
 
 Usage:
@@ -8,7 +8,7 @@ Usage:
     b.open("https://example.com")
     b.find("#login")
     b.click()
-    b.wait_until("visible", "#chart", timeout=10000)
+    b.wait_until("visible", "#chart")
     b.close()
 """
 

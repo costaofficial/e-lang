@@ -1,5 +1,5 @@
 """
-E Driver base class + Dry implementation
+E — driver base class + dry implementation
 """
 
 from abc import ABC, abstractmethod

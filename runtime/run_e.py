@@ -1,12 +1,12 @@
 """
-E — Automation Language
-========================
+E — general-purpose language
+=============================
 CLI entry point.
 
 Usage:
-    python3 run_e.py script.e                 # dry-run
-    python3 run_e.py --live script.e          # real execution
-    python3 run_e.py --live script.e --watch   # keep alive for scheduler
+    python3 runtime/run_e.py script.e                 # dry-run
+    python3 runtime/run_e.py --live script.e          # live execution
+    python3 runtime/run_e.py --live --watch script.e  # keep alive for scheduler
 """
 
 import sys

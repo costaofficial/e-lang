@@ -1,6 +1,7 @@
-# E — an automation language
+# E — a general-purpose language
 
 **E describes *when* to do something, *on what*, and *what to do*** — the runtime handles the rest.
+Scripts. Backend. Automation. Whatever you need.
 
 ## Example
 
@@ -52,34 +53,21 @@ v0.2 — live execution enabled.
 | `run` (subprocess) | ✅ | ✅ |
 | `write` / `create` (filesystem) | ✅ | ✅ |
 | `open` (browser) | ✅ | ✅ |
-| `time` scheduling (APScheduler) | ✅ | ✅ |
+| `time` scheduling | ✅ | ✅ |
 | `retry` + `fallback` | ✅ | ✅ |
 | `click` / `find` | ✅ | ✅ (Playwright) |
-| `login` | ✅ | ⏳ (needs Playwright auto-detect) |
-| `email` | ✅ | ⏳ (needs SMTP config) |
-| `wait download` | ✅ | ⏳ (needs browser download handler) |
-| `watch` (filesystem) | ✅ | ⏳ (needs watchdog) |
+| `login` | ✅ | ⏳ |
+| `email` | ✅ | ⏳ |
+| `wait download` | ✅ | ⏳ |
+| `watch` (filesystem) | ✅ | ⏳ |
 
-## Quick start
-
-```bash
-# dry-run (default — shows what would happen)
-python3 runtime/run_e.py examples/hello.e
-
-# live mode (actually writes files, opens browser, etc.)
-python3 runtime/run_e.py --live examples/demo_live.e
-
-# live with scheduler (keeps process alive for scheduled tasks)
-python3 runtime/run_e.py --live --watch examples/garmin.e
-```
-
-## Install dependencies
+## Install
 
 ```bash
-# Optional — needed for scheduler
-pip install apscheduler
+python3 runtime/run_e.py examples/hello.e          # dry-run
+python3 runtime/run_e.py --live examples/garmin.e  # live
 
-# Optional — needed for browser automation
+# optional: browser automation
 pip install playwright
 playwright install chromium
 ```
@@ -91,10 +79,10 @@ playwright install chromium
 | `examples/hello.e` | Opens Google, searches |
 | `examples/backup.e` | Writes a file, emails it |
 | `examples/login.e` | Retry logic with fallback |
-| `examples/download.e` | Browser automation pipeline |
-| `examples/garmin.e` | Full automation script |
-| `examples/browser_demo.e` | Live browser demo (Playwright) |
-| `examples/demo_live.e` | Live mode demo (file + subprocess) |
+| `examples/download.e` | Browser pipeline |
+| `examples/garmin.e` | Full script |
+| `examples/browser_demo.e` | Live browser demo |
+| `examples/demo_live.e` | Live file + subprocess |
 
 ## License
 

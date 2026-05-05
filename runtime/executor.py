@@ -1,5 +1,5 @@
 """
-E Executor — walks AST, calls driver, handles context/retry/fallback
+E — Executor: walks AST, calls driver, handles context/retry/fallback
 """
 
 from .context import RuntimeContext

@@ -1,4 +1,4 @@
-// Full automation: weekly report
+// Weekly report: export + process + notify
 time every day at 02:00 do
     // 1. Extract data
     with browser do

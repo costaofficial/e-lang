@@ -1,4 +1,4 @@
-# E formal grammar (EBNF)
+# E — formal grammar (EBNF)
 
 ---
 

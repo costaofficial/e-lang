@@ -1,6 +1,6 @@
 # 🧠 WHAT IS E (in one sentence)
 
-> E is a language that describes **when to do something, on what, and what to do**, leaving all complexity to the runtime.
+> E is a general-purpose language that describes **when to do something, on what, and what to do**, leaving all complexity to the runtime.
 
 ---
 

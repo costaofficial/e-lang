@@ -1,10 +1,10 @@
 """
-E parser — Automation Language
-=================================
+E parser — general-purpose language
+=====================================
 Lexer + Recursive Descent Parser → AST
 
 Usage:
-    python parser_e.py script.e
+    python3 parser/parser_e.py script.e
 """
 
 import sys

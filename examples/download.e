@@ -1,4 +1,4 @@
-// Download files and process them
+// Download and process files
 time at 18:00 do
     with browser do
         open "https://reportingsite.com"
