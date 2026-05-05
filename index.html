@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E — automation language</title>
 <style>
-/* ── GameBoy palette ── */
+/* ── B&W palette ── */
 :root {
-  --bg: #9bbc0f;
-  --bg-dark: #306230;
-  --bg-darker: #0f380f;
-  --bg-light: #8bac0f;
-  --text: #0f380f;
-  --text-light: #306230;
-  --accent: #0f380f;
-  --white: #e0f8cf;
+  --bg: #ffffff;
+  --bg-dark: #cccccc;
+  --bg-darker: #222222;
+  --bg-light: #f0f0f0;
+  --text: #111111;
+  --text-light: #555555;
+  --accent: #111111;
+  --white: #ffffff;
 }
 
 @font-face {
@@ -42,8 +42,8 @@ body::after {
     0deg,
     transparent,
     transparent 2px,
-    rgba(0,0,0,0.03) 2px,
-    rgba(0,0,0,0.03) 4px
+    rgba(0,0,0,0.02) 2px,
+    rgba(0,0,0,0.02) 4px
   );
   pointer-events: none;
   z-index: 999;
@@ -67,8 +67,7 @@ body::after {
 .logo {
   font-size: 64px;
   font-weight: bold;
-  color: var(--bg-darker);
-  text-shadow: 4px 4px 0 var(--bg-dark);
+  color: var(--text);
   letter-spacing: 8px;
   line-height: 1;
   margin-bottom: 8px;
@@ -83,8 +82,8 @@ body::after {
 
 /* ── Terminal ── */
 .terminal {
-  background: var(--bg-darker);
-  color: var(--bg-light);
+  background: #111111;
+  color: #e0e0e0;
   border: 4px solid var(--bg-dark);
   padding: 20px;
   font-size: 13px;
@@ -97,19 +96,18 @@ body::after {
 }
 
 .terminal-header {
-  color: var(--white);
+  color: #888;
   margin-bottom: 12px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  opacity: 0.6;
 }
 
 .cursor {
   display: inline-block;
   width: 8px;
   height: 14px;
-  background: var(--bg-light);
+  background: #e0e0e0;
   animation: blink 1s step-end infinite;
   vertical-align: text-bottom;
   margin-left: 2px;
@@ -121,10 +119,10 @@ body::after {
 }
 
 .line { white-space: pre-wrap; min-height: 1.2em; }
-.line-new { color: var(--white); }
-.line-keyword { color: #8bac0f; font-weight: bold; }
-.line-string { color: #e0f8cf; }
-.line-comment { color: var(--text-light); font-style: italic; }
+.line-new { color: #ffffff; }
+.line-keyword { color: #888; font-weight: bold; }
+.line-string { color: #aaa; }
+.line-comment { color: #555; font-style: italic; }
 
 /* ── Sections ── */
 .section {
@@ -175,8 +173,8 @@ body::after {
 
 /* ── Code block ── */
 .code-block {
-  background: var(--bg-darker);
-  color: var(--bg-light);
+  background: #111111;
+  color: #e0e0e0;
   border: 4px solid var(--bg-dark);
   padding: 16px;
   font-size: 12px;
@@ -185,9 +183,9 @@ body::after {
   margin-bottom: 16px;
 }
 
-.code-comment { color: var(--text-light); font-style: italic; }
-.code-keyword { color: #8bac0f; font-weight: bold; }
-.code-string { color: #e0f8cf; }
+.code-comment { color: #555; font-style: italic; }
+.code-keyword { color: #999; font-weight: bold; }
+.code-string { color: #bbb; }
 
 /* ── Button ── */
 .btn {
@@ -250,8 +248,8 @@ body::after {
 
 /* ── Marquee / demo note ── */
 .note {
-  background: var(--bg-darker);
-  color: var(--bg-light);
+  background: #111111;
+  color: #e0e0e0;
   padding: 12px 16px;
   font-size: 12px;
   margin-bottom: 32px;
@@ -366,92 +364,101 @@ $ python3 runtime/run_e.py --live examples/browser_demo.e<br>
 </div>
 
 <script>
-// ── Terminal animation ──
 const code = [
   { t:'comment', v:'// every day at 2am — export Garmin data' },
-  { t:'text', v:'time every day at 02:00 do' },
-  { t:'text', v:'    with browser do' },
-  { t:'text', v:'        open "https://connect.garmin.com"' },
-  { t:'text', v:'        with page { timeout: 10s } do' },
-  { t:'text', v:'            login "user" "pass" or stop' },
-  { t:'text', v:'            click "#export-all"' },
-  { t:'text', v:'            wait download' },
-  { t:'text', v:'        done' },
-  { t:'text', v:'    done' },
-  { t:'comment', v:'// any error → log and continue' },
-  { t:'text', v:'done or log error' },
+  { t:'keyword', v:'time' }, { t:'text', v:' every day ' }, { t:'keyword', v:'at' }, { t:'text', v:' 02:00 ' }, { t:'keyword', v:'do' },
   { t:'newline' },
-  { t:'comment', v:'// output: ✅ fit imported  📧 report.pdf sent' },
+  { t:'text', v:'    ' }, { t:'keyword', v:'with' }, { t:'text', v:' browser ' }, { t:'keyword', v:'do' },
+  { t:'newline' },
+  { t:'text', v:'        ' }, { t:'keyword', v:'open' }, { t:'text', v:' ' }, { t:'string', v:'"https://connect.garmin.com"' },
+  { t:'newline' },
+  { t:'text', v:'        ' }, { t:'keyword', v:'with' }, { t:'text', v:' page { timeout: 10s } ' }, { t:'keyword', v:'do' },
+  { t:'newline' },
+  { t:'text', v:'            ' }, { t:'keyword', v:'login' }, { t:'text', v:' ' }, { t:'string', v:'"user"' }, { t:'text', v:' ' }, { t:'string', v:'"pass"' }, { t:'text', v:' ' }, { t:'keyword', v:'or' }, { t:'text', v:' ' }, { t:'keyword', v:'stop' },
+  { t:'newline' },
+  { t:'text', v:'            ' }, { t:'keyword', v:'click' }, { t:'text', v:' ' }, { t:'string', v:'"#export-all"' },
+  { t:'newline' },
+  { t:'text', v:'            ' }, { t:'keyword', v:'wait' }, { t:'text', v:' download' },
+  { t:'newline' },
+  { t:'text', v:'        ' }, { t:'keyword', v:'done' },
+  { t:'newline' },
+  { t:'text', v:'    ' }, { t:'keyword', v:'done' },
+  { t:'newline' },
+  { t:'comment', v:'// any error → log and continue' },
+  { t:'newline' },
+  { t:'keyword', v:'done' }, { t:'text', v:' ' }, { t:'keyword', v:'or' }, { t:'text', v:' log error' },
 ];
 
 const termLines = document.getElementById('terminal-lines');
+const cursor = document.createElement('span');
+cursor.className = 'cursor';
 let lineIdx = 0;
 let charIdx = 0;
 let currentLine = null;
 
-function addChar(char, type) {
-  if (!currentLine) {
-    currentLine = document.createElement('div');
-    currentLine.className = 'line';
-    termLines.appendChild(currentLine);
-  }
+function addSpan(text, cls) {
   const span = document.createElement('span');
-  if (type === 'comment') span.className = 'line-comment';
-  else if (type === 'keyword') span.className = 'line-keyword';
-  else if (type === 'string') span.className = 'line-string';
-  else span.className = 'line-new';
-  span.textContent = char;
+  if (cls) span.className = cls;
+  span.textContent = text;
   currentLine.appendChild(span);
 }
 
-function nextLine() {
-  currentLine = null;
-  lineIdx++;
-  charIdx = 0;
-  setTimeout(typeChar, 40);
+function popCursor() {
+  if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
 }
 
-function typeChar() {
-  if (lineIdx >= code.length) return;
+function pushCursor() {
+  if (currentLine) currentLine.appendChild(cursor);
+}
+
+function nextLine() {
+  popCursor();
+  currentLine = document.createElement('div');
+  currentLine.className = 'line';
+  termLines.appendChild(currentLine);
+  pushCursor();
+}
+
+function isDone() {
+  return lineIdx >= code.length;
+}
+
+function tick() {
+  if (isDone()) {
+    return;
+  }
 
   const entry = code[lineIdx];
 
   if (entry.t === 'newline') {
+    lineIdx++;
     nextLine();
+    setTimeout(tick, 30);
     return;
   }
 
-  if (charIdx < entry.v.length) {
-    const ch = entry.v[charIdx];
-    let type = entry.t;
-    if (ch === '"') type = 'string';
-    else if ('time every at do done with or retry times wait until watch login stop write email upload click find log file browser page app visible hidden download to s ms timeout'.split(' ').includes(entry.v.slice(charIdx).split(/[ "]/)[0]) && charIdx === 0) {
-      // simplistic keyword detection
-    }
-    addChar(ch, type);
-    charIdx++;
-    const delay = entry.t === 'comment' ? 4 : (Math.random() * 20 + 10);
-    setTimeout(typeChar, delay);
+  const chunk = entry.v;
+  const cls = entry.t === 'text' ? '' : 'line-' + entry.t;
+
+  if (charIdx < chunk.length) {
+    if (!currentLine) nextLine();
+    popCursor();
+    const charsLeft = chunk.length - charIdx;
+    const take = Math.min(3 + Math.floor(Math.random() * 4), charsLeft);
+    addSpan(chunk.slice(charIdx, charIdx + take), cls);
+    charIdx += take;
+    pushCursor();
+    const delay = entry.t === 'comment' ? 6 : (15 + Math.random() * 20);
+    setTimeout(tick, delay);
   } else {
-    if (lineIdx === 4) {
-      // highlight keywords on the login line
-    }
-    setTimeout(nextLine, 200);
+    lineIdx++;
+    charIdx = 0;
+    setTimeout(tick, 80);
   }
 }
 
-setTimeout(typeChar, 400);
-
-// ── Retro cursor blink ──
-setInterval(() => {
-  const cursor = document.querySelector('.cursor') || (() => {
-    const c = document.createElement('span');
-    c.className = 'cursor';
-    document.getElementById('terminal-lines').appendChild(c);
-    return c;
-  })();
-  cursor.style.display = cursor.style.display === 'none' ? 'inline-block' : 'none';
-}, 500);
+nextLine();
+setTimeout(tick, 600);
 </script>
 
 </body>
