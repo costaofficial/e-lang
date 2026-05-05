@@ -5,242 +5,193 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E — general-purpose language</title>
 <style>
-:root {
-  --bg: #ffffff;
-  --bg-dark: #cccccc;
-  --bg-darker: #222222;
-  --bg-light: #f0f0f0;
-  --text: #111111;
-  --text-light: #555555;
-  --accent: #111111;
-  --white: #ffffff;
-}
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: #fff; color: #111;
   font-family: 'Courier New', monospace;
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 15px; line-height: 1.6;
 }
+.container { max-width: 680px; margin: 0 auto; padding: 32px 20px; }
 
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
-  pointer-events: none;
-  z-index: 999;
+/* ── header ── */
+.hd { text-align: center; padding: 40px 0 24px; border-bottom: 3px solid #ccc; margin-bottom: 40px; }
+.hd-logo { font-size: 64px; font-weight: bold; letter-spacing: 8px; line-height: 1; }
+.hd-tag { font-size: 13px; color: #555; text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; }
+
+/* ── terminal ── */
+.term {
+  background: #111; color: #ddd;
+  padding: 20px; margin-bottom: 40px;
+  font-size: 13px; line-height: 1.7;
+  min-height: 180px;
 }
-
-.container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
-
-.header { text-align: center; padding: 40px 0 20px; border-bottom: 4px solid var(--bg-dark); margin-bottom: 32px; }
-.logo { font-size: 64px; font-weight: bold; color: var(--text); letter-spacing: 8px; line-height: 1; margin-bottom: 8px; }
-.tagline { font-size: 14px; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; }
-
-.terminal {
-  background: #111111; color: #e0e0e0; border: 4px solid var(--bg-dark);
-  padding: 20px; font-size: 13px; line-height: 1.6; margin-bottom: 32px;
-  min-height: 200px; overflow: hidden;
-}
-.terminal-header { color: #888; margin-bottom: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-.cursor { display: inline-block; width: 8px; height: 14px; background: #e0e0e0; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 2px; }
+.term-hd { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.cursor { display: inline-block; width: 7px; height: 13px; background: #ddd; vertical-align: text-bottom; margin-left: 1px; animation: blink 1s step-end infinite; }
 @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
-.line { white-space: pre-wrap; min-height: 1.2em; }
-.line-new { color: #ffffff; }
-.line-keyword { color: #888; font-weight: bold; }
-.line-string { color: #aaa; }
-.line-comment { color: #555; font-style: italic; }
+.tk { color: #888; font-weight: bold; }
+.tc { color: #555; font-style: italic; }
+.ts { color: #aaa; }
 
-.section { margin-bottom: 40px; }
-.section-title { font-size: 18px; font-weight: bold; color: var(--bg-darker); text-transform: uppercase; letter-spacing: 3px; border-bottom: 2px solid var(--bg-dark); padding-bottom: 8px; margin-bottom: 16px; }
+/* ── section ── */
+.sec { margin-bottom: 40px; }
+.sec-hd { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; border-bottom: 2px solid #ccc; padding-bottom: 6px; margin-bottom: 14px; }
+.sec p { margin-bottom: 10px; }
 
-.features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 480px) { .features { grid-template-columns: 1fr; } }
-.feature { border: 2px solid var(--bg-dark); padding: 16px; background: var(--bg-light); }
-.feature-title { font-weight: bold; font-size: 13px; color: var(--bg-darker); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-.feature-desc { font-size: 12px; color: var(--text-light); }
+/* ── code ── */
+pre {
+  background: #111; color: #ddd;
+  padding: 16px; margin-bottom: 14px;
+  font-size: 12px; line-height: 1.5;
+  overflow-x: auto;
+}
+pre .c { color: #555; font-style: italic; }
+pre .k { color: #999; font-weight: bold; }
+pre .s { color: #bbb; }
 
-.code-block { background: #111111; color: #e0e0e0; border: 4px solid var(--bg-dark); padding: 16px; font-size: 12px; line-height: 1.5; overflow-x: auto; margin-bottom: 16px; }
-.code-comment { color: #555; font-style: italic; }
-.code-keyword { color: #999; font-weight: bold; }
-.code-string { color: #bbb; }
+/* ── grid ── */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 500px) { .grid { grid-template-columns: 1fr; } }
+.g-item { border: 2px solid #ccc; padding: 14px; background: #f5f5f5; }
+.g-item h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.g-item p { font-size: 12px; color: #555; }
 
-.btn { display: inline-block; background: var(--bg-darker); color: var(--bg-light); border: none; padding: 12px 28px; font-family: 'Courier New', monospace; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; text-decoration: none; border: 2px solid var(--bg-dark); transition: all 0.1s; }
-.btn:hover { background: var(--bg-dark); color: var(--white); }
-.btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+/* ── btn ── */
+.btn { display: inline-block; background: #222; color: #eee; padding: 10px 24px; font-family: inherit; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; border: 2px solid #ccc; margin-right: 8px; margin-bottom: 8px; }
+.btn:hover { background: #ccc; color: #111; }
 
-.footer { text-align: center; padding: 32px 0; font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; border-top: 2px solid var(--bg-dark); margin-top: 40px; }
-.footer a { color: var(--bg-darker); text-decoration: none; }
-.footer a:hover { text-decoration: underline; }
-
-.separator { text-align: center; color: var(--bg-dark); font-size: 20px; letter-spacing: 8px; margin: 24px 0; }
+/* ── footer ── */
+.ft { text-align: center; padding: 32px 0; font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px; border-top: 2px solid #ccc; margin-top: 40px; }
+.ft a { color: #111; text-decoration: none; }
+.ft a:hover { text-decoration: underline; }
+.sep { text-align: center; color: #ccc; font-size: 18px; letter-spacing: 6px; margin: 24px 0; }
 </style>
 </head>
 <body>
 
 <div class="container">
 
-  <div class="header">
-    <div class="logo">E</div>
-    <div class="tagline">describe actions in time</div>
+  <div class="hd">
+    <div class="hd-logo">E</div>
+    <div class="hd-tag">describe actions in time</div>
   </div>
 
-  <div class="terminal" id="terminal">
-    <div class="terminal-header">⏵ e-lang/v0.4</div>
-    <div id="terminal-lines"></div>
+  <div class="term" id="term">
+    <div class="term-hd">⏵ e-lang/v0.4</div>
+    <div id="lines"></div>
   </div>
 
-  <div class="section">
-    <div class="section-title">What is E</div>
-    <p style="margin-bottom:12px; font-size:14px;">
-      E is a general-purpose language that describes <strong>when</strong> to do something,
-      <strong>on what</strong>, and <strong>what to do</strong>.
-      The runtime handles the complexity — you describe the intent.
-    </p>
-    <p style="font-size:13px; color:var(--text-light);">
-      General-purpose. Declarative. Human-readable.
-    </p>
+  <div class="sec">
+    <div class="sec-hd">What is E</div>
+    <p>E is a general-purpose language. You describe <strong>when</strong> to do something, <strong>on what</strong>, and <strong>what to do</strong>. The runtime handles the complexity.</p>
+    <p style="color:#555;font-size:13px;">Declarative. Human-readable. Event-oriented.</p>
   </div>
 
-  <div class="separator">◆ ◇ ◆ ◇ ◆</div>
+  <div class="sep">◆ ◇ ◆ ◇ ◆</div>
 
-  <div class="section">
-    <div class="section-title">Example</div>
-    <div class="code-block">
-<span class="code-comment">// every day at 2am — export & notify</span><br>
-<span class="code-keyword">time</span> every day <span class="code-keyword">at</span> 02:00 <span class="code-keyword">do</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">with</span> browser <span class="code-keyword">do</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">open</span> <span class="code-string">"https://connect.garmin.com"</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">with</span> page { timeout: 10s } <span class="code-keyword">do</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;login <span class="code-string">"user"</span> <span class="code-string">"pass"</span> <span class="code-keyword">or</span> stop<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;click <span class="code-string">"#export-all"</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wait download<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">done</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">done</span><br>
-<span class="code-keyword">done</span> <span class="code-keyword">or</span> log error<br>
+  <div class="sec">
+    <div class="sec-hd">Example</div>
+<pre><span class="c">// every day at 2am — export & notify</span>
+<span class="k">time</span> every day <span class="k">at</span> 02:00 <span class="k">do</span>
+    <span class="k">with</span> browser <span class="k">do</span>
+        <span class="k">open</span> <span class="s">"https://connect.garmin.com"</span>
+        <span class="k">with</span> page { timeout: 10s } <span class="k">do</span>
+            login <span class="s">"user"</span> <span class="s">"pass"</span> <span class="k">or</span> stop
+            click <span class="s">"#export-all"</span>
+            wait download
+        <span class="k">done</span>
+    <span class="k">done</span>
+<span class="k">done</span> <span class="k">or</span> log error</pre>
+  </div>
+
+  <div class="sec">
+    <div class="sec-hd">Features</div>
+    <div class="grid">
+      <div class="g-item"><h3>⏰ Time</h3><p>Schedule scripts with <code>time every day at</code> — cron-like scheduler underneath.</p></div>
+      <div class="g-item"><h3>🌐 Browser</h3><p><code>open</code>, <code>find</code>, <code>click</code>, <code>wait</code> — powered by Playwright.</p></div>
+      <div class="g-item"><h3>🔄 Retry</h3><p><code>retry N times do ... done</code> with automatic backoff.</p></div>
+      <div class="g-item"><h3>⚠️ Fallback</h3><p>Every statement can have an <code>or</code> fallback — local or global.</p></div>
+      <div class="g-item"><h3>📁 System</h3><p><code>write</code>, <code>create</code>, <code>run</code> — filesystem and shell.</p></div>
+      <div class="g-item"><h3>📧 Email</h3><p><code>email to "addr" file "x"</code> — SMTP ready.</p></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">Features</div>
-    <div class="features">
-      <div class="feature">
-        <div class="feature-title">⏰ Time</div>
-        <div class="feature-desc">Schedule with <code>time every day at</code> — cron-like, real scheduler underneath.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-title">🌐 Browser</div>
-        <div class="feature-desc"><code>open</code>, <code>find</code>, <code>click</code>, <code>wait</code> via Playwright.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-title">🔄 Retry</div>
-        <div class="feature-desc"><code>retry N times do ... done</code> with automatic backoff.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-title">⚠️ Fallback</div>
-        <div class="feature-desc">Every statement can have an <code>or</code> fallback — local or global.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-title">📁 System</div>
-        <div class="feature-desc"><code>write</code>, <code>create</code>, <code>run</code> — filesystem and subprocess.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-title">📧 Email</div>
-        <div class="feature-desc"><code>email to "addr" file "report.pdf"</code> — SMTP ready.</div>
-      </div>
-    </div>
+  <div class="sec">
+    <div class="sec-hd">Try it</div>
+<pre>$ git clone https://github.com/costaofficial/e-lang.git
+$ cd e-lang
+$ python3 runtime/run_e.py examples/hello.e
+
+<span style="color:#555;"># with a real browser</span>
+$ pip install playwright
+$ playwright install chromium
+$ python3 runtime/run_e.py --live examples/browser_demo.e</pre>
+    <a class="btn" href="https://github.com/costaofficial/e-lang" target="_blank">View on GitHub</a>
+    <a class="btn" href="https://github.com/costaofficial/e-lang/releases" target="_blank">Download v0.4</a>
   </div>
 
-  <div class="section">
-    <div class="section-title">Try it</div>
-    <div class="code-block" style="font-size:12px;">
-$ git clone https://github.com/costaofficial/e-lang.git<br>
-$ cd e-lang<br>
-$ python3 runtime/run_e.py examples/hello.e<br>
-<br>
-<span style="color:#555;"># with a real browser</span><br>
-$ pip install playwright<br>
-$ playwright install chromium<br>
-$ python3 runtime/run_e.py --live examples/browser_demo.e<br>
-    </div>
-    <div class="btn-group">
-      <a href="https://github.com/costaofficial/e-lang" class="btn" target="_blank">View on GitHub</a>
-      <a href="https://github.com/costaofficial/e-lang/releases" class="btn" target="_blank">Download v0.4</a>
-    </div>
-  </div>
-
-  <div class="footer">
+  <div class="ft">
     <a href="https://github.com/costaofficial/e-lang">e-lang</a> &nbsp;·&nbsp; Apache 2.0 &nbsp;·&nbsp; 2025
   </div>
 
 </div>
 
 <script>
-const code = [
-  { t:'comment', v:'// every day at 2am — export & notify' },
-  { t:'keyword', v:'time' }, { t:'text', v:' every day ' }, { t:'keyword', v:'at' }, { t:'text', v:' 02:00 ' }, { t:'keyword', v:'do' },
-  { t:'newline' },
-  { t:'text', v:'    ' }, { t:'keyword', v:'with' }, { t:'text', v:' browser ' }, { t:'keyword', v:'do' },
-  { t:'newline' },
-  { t:'text', v:'        ' }, { t:'keyword', v:'open' }, { t:'text', v:' ' }, { t:'string', v:'"https://connect.garmin.com"' },
-  { t:'newline' },
-  { t:'text', v:'        ' }, { t:'keyword', v:'with' }, { t:'text', v:' page { timeout: 10s } ' }, { t:'keyword', v:'do' },
-  { t:'newline' },
-  { t:'text', v:'            ' }, { t:'keyword', v:'login' }, { t:'text', v:' ' }, { t:'string', v:'"user"' }, { t:'text', v:' ' }, { t:'string', v:'"pass"' }, { t:'text', v:' ' }, { t:'keyword', v:'or' }, { t:'text', v:' ' }, { t:'keyword', v:'stop' },
-  { t:'newline' },
-  { t:'text', v:'            ' }, { t:'keyword', v:'click' }, { t:'text', v:' ' }, { t:'string', v:'"#export-all"' },
-  { t:'newline' },
-  { t:'text', v:'            ' }, { t:'keyword', v:'wait' }, { t:'text', v:' download' },
-  { t:'newline' },
-  { t:'text', v:'        ' }, { t:'keyword', v:'done' },
-  { t:'newline' },
-  { t:'text', v:'    ' }, { t:'keyword', v:'done' },
-  { t:'newline' },
-  { t:'comment', v:'// any error → log and continue' },
-  { t:'newline' },
-  { t:'keyword', v:'done' }, { t:'text', v:' ' }, { t:'keyword', v:'or' }, { t:'text', v:' log error' },
+const lines = [
+  { t:'c', v:'// every day at 2am — export & notify' },
+  { t:'',  v:'time every day at 02:00 do' },
+  { t:'',  v:'    with browser do' },
+  { t:'',  v:'        open "https://connect.garmin.com"' },
+  { t:'',  v:'        with page { timeout: 10s } do' },
+  { t:'',  v:'            login "user" "pass" or stop' },
+  { t:'',  v:'            click "#export-all"' },
+  { t:'',  v:'            wait download' },
+  { t:'',  v:'        done' },
+  { t:'',  v:'    done' },
+  { t:'c', v:'// any error — log and continue' },
+  { t:'',  v:'done or log error' },
 ];
 
-const termLines = document.getElementById('terminal-lines');
-const cursor = document.createElement('span');
-cursor.className = 'cursor';
-let lineIdx = 0, charIdx = 0, currentLine = null;
+const kw = new Set('time every at do done with or retry times wait until watch login stop write email upload click find log file browser page app visible hidden download to s ms timeout'.split(' '));
 
-function addSpan(text, cls) {
-  const span = document.createElement('span');
-  if (cls) span.className = cls;
-  span.textContent = text;
-  currentLine.appendChild(span);
-}
-function popCursor() { if (cursor.parentNode) cursor.parentNode.removeChild(cursor); }
-function pushCursor() { if (currentLine) currentLine.appendChild(cursor); }
-function nextLine() { popCursor(); currentLine = document.createElement('div'); currentLine.className = 'line'; termLines.appendChild(currentLine); pushCursor(); }
-function isDone() { return lineIdx >= code.length; }
-function tick() {
-  if (isDone()) return;
-  const entry = code[lineIdx];
-  if (entry.t === 'newline') { lineIdx++; nextLine(); setTimeout(tick, 30); return; }
-  const chunk = entry.v;
-  const cls = entry.t === 'text' ? '' : 'line-' + entry.t;
-  if (charIdx < chunk.length) {
-    if (!currentLine) nextLine();
-    popCursor();
-    const take = Math.min(3 + Math.floor(Math.random() * 4), chunk.length - charIdx);
-    addSpan(chunk.slice(charIdx, charIdx + take), cls);
-    charIdx += take;
-    pushCursor();
-    setTimeout(tick, entry.t === 'comment' ? 6 : (15 + Math.random() * 20));
+const box = document.getElementById('lines');
+const cur = document.createElement('span');
+cur.className = 'cursor';
+let li = 0, ci = 0, ln = null;
+
+function rmCur() { if (cur.parentNode) cur.parentNode.removeChild(cur); }
+function addCur() { if (ln) ln.appendChild(cur); }
+function newLn() { rmCur(); ln = document.createElement('div'); box.appendChild(ln); addCur(); }
+
+function typeChar() {
+  if (li >= lines.length) return;
+  const entry = lines[li];
+  if (ci === 0) newLn();
+
+  const ch = entry.v[ci];
+  let cls = '';
+  if (entry.t === 'c') cls = 'tc';
+  else if (ch === '"') cls = 'ts';
+  else if (kw.has(entry.v.slice(ci).split(/[ "]/)[0]) && (ci === 0 || entry.v[ci-1] === ' ' || entry.v[ci-1] === '\t')) {
+    cls = 'tk';
+  }
+
+  rmCur();
+  const s = document.createElement('span');
+  if (cls) s.className = cls;
+  s.textContent = ch;
+  ln.appendChild(s);
+  ci++;
+  addCur();
+
+  if (ci >= entry.v.length) {
+    li++; ci = 0;
+    setTimeout(typeChar, 60 + Math.random() * 40);
   } else {
-    lineIdx++; charIdx = 0;
-    setTimeout(tick, 80);
+    setTimeout(typeChar, 8 + Math.random() * 14);
   }
 }
-nextLine();
-setTimeout(tick, 600);
+
+setTimeout(typeChar, 600);
 </script>
 
 </body>
