@@ -265,10 +265,10 @@ use_statement = "use", string ;
 **Example:**
 
 ```e
-// lib.e
+// lib.eee
 fn double n do n * 2 done
 
-// main.e
+// main.eee
 do
     use "lib"
     log double 5
@@ -590,11 +590,11 @@ done or log error
 # Build from source
 cd e/
 cargo build --release
-./target/release/e examples/hello.e
+./target/release/e examples/hello.eee
 
 # Or install globally
 sudo cp target/release/e /usr/local/bin/
-e examples/hello.e
+e examples/hello.eee
 ```
 
 No dependencies required. Single binary.

@@ -7,11 +7,11 @@
 ```bash
 git clone https://github.com/costaofficial/e-lang.git
 cd e-lang/e
-cargo run -- ../examples/hello.e
+cargo run -- ../examples/hello.eee
 
 # build the binary
 cargo build --release
-./target/release/e examples/hello.e
+./target/release/e examples/hello.eee
 ```
 
 ## Install globally
@@ -20,7 +20,7 @@ cargo build --release
 cd e-lang/e
 cargo build --release
 sudo cp target/release/e /usr/local/bin/
-e examples/hello.e
+e examples/hello.eee
 ```
 
 ## Example
