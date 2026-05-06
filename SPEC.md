@@ -11,7 +11,7 @@ E is a **general-purpose language** that describes **when** to do something, **o
 Core principles:
 - **Declarative** — you say *what*, not *how*
 - **Human-readable** — syntax is minimal, no punctuation noise
-- **Event-oriented** — time, conditions, retries are built-in, not bolted on
+- **Event-oriented** — time, conditions, actions are built-in
 - **Consistent** — `... do ... done` for everything
 
 ---

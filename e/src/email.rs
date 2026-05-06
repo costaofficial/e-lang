@@ -20,7 +20,7 @@ impl Mailer {
         let email = Message::builder()
             .from(smtp_from.parse().map_err(|e| format!("invalid from: {}", e))?)
             .to(to.parse().map_err(|e| format!("invalid to: {}", e))?)
-            .subject("E — automated message")
+            .subject("E — message")
             .body(format!("Sent by E at {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S")))
             .map_err(|e| format!("email build error: {}", e))?;
 
