@@ -25,18 +25,21 @@ e examples/hello.eee
 
 ## Example
 
-```rust
-time every week at 03:00 do
-    with browser do
-        open "https://connect.garmin.com"
-        with page { timeout: 15s } do
-            login "user" "password" or stop
-            click "#export-all-btn"
-            wait download
-        done
-    done
-    email to "admin@example.com" file "export.zip"
-done or log error
+```eee
+:sys
+use "libhttp.so"
+use "libdb.so"
+
+:core
+fn pagina_utente id do
+    let dati = sys_call "libdb.so" "query" "SELECT * FROM users WHERE id = " + id
+    log dati
+done
+
+:ui
+<script>
+function mostra() { document.title = "E app"; }
+</script>
 ```
 
 ## Examples
@@ -56,8 +59,8 @@ done or log error
 
 ## Status
 
-**v2.0** — Rust runtime. Single binary, no dependencies.
-Previously a Python prototype (v0.1–v1.2), fully rewritten in Rust.
+**v3.1** — 3-tier language: Rust plugins + E core + JS UI.
+Single binary, no dependencies. Plugin system via `.so` modules.
 
 ## License
 
