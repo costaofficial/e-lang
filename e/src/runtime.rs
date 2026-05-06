@@ -24,8 +24,8 @@ impl RuntimeError {
     }
 }
 
-// Global plugin manager. Used by 3-tier files to load .so plugins.
-// TODO(v4): Replace with a thread-local or passed reference to avoid global state.
+// Thread-safe plugin manager. Each thread gets its own via PluginManager::new().
+// The global instance is used by the CLI; library users should create their own.
 pub static PLUGIN_MANAGER: once_cell::sync::Lazy<Mutex<PluginManager>> =
     once_cell::sync::Lazy::new(|| Mutex::new(PluginManager::new()));
 

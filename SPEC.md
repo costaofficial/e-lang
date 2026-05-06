@@ -559,7 +559,7 @@ Driver (interface)
 
 ---
 
-## 20. Current status (v3.1)
+## 20. Current status (v3.2)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -587,7 +587,7 @@ Driver (interface)
 | `login` | ✅ Complete | Playwright auto-detect |
 | `email` | ✅ Complete | SMTP with env vars |
 | `wait download` | ✅ Complete | Playwright download handler |
-| `watch` | ✅ Complete | Watchdog library |
+| `watch` | ✅ Complete | Directory polling (2s interval) |
 
 ---
 
