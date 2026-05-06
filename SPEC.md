@@ -1,6 +1,6 @@
 # E — Language Specification
 
-> v2.0 — May 2026 (Rust runtime)
+> v3.1 — May 2026 (3-tier: Rust plugins + E core + JS UI)
 
 ---
 
@@ -29,13 +29,50 @@ Core principles:
 
 ---
 
-## 3. Programs
+## 3. File formats
+
+### Standard `.eee` files
 
 A program is a sequence of **statement units**:
 
 ```
 program    = { statement_unit } ;
 statement_unit = time_unit | script_unit | fn_definition | let_statement | use_statement ;
+```
+
+### 3-tier `.eee` files
+
+An `.eee` file can also contain three sections:
+
+```
+efile = ":sys", <plugin declarations>
+      | ":core", <E code>
+      | ":ui", <HTML/JS>
+      ;
+```
+
+- **`:sys`** — declares which Rust `.so` plugins to load
+- **`:core`** — E code (variables, functions, logic)
+- **`:ui`** — HTML + JavaScript interface (shown in a native window)
+
+All three sections in one file. The runtime executes `:core`, loads `:sys` plugins, and opens `:ui` in a WebView.
+
+**Example:**
+
+```eee
+:sys
+use "db.eso"
+use "http.eso"
+
+:core
+do
+    let result = sys_call "db.eso" "query" "SELECT * FROM users"
+    log result
+done
+
+:ui
+<h1>App</h1>
+<script>console.log('ready');</script>
 ```
 
 ---
@@ -254,7 +291,7 @@ Strings are split by newlines when iterated. Lists iterate element by element.
 
 ---
 
-## 11. Modules (`import`)
+## 11. Modules (`use`)
 
 **Purpose:** Load code from another file.
 
@@ -313,7 +350,7 @@ factor      = number | string | list_literal | "(", expression, ")"
 
 ---
 
-## 14. Actions
+## 13. Actions
 
 All available actions:
 
@@ -348,7 +385,7 @@ All available actions:
 
 ---
 
-## 15. Conditions (`when`)
+## 14. Conditions (`when`)
 
 **Purpose:** Execute actions only when a condition is true.
 
@@ -392,7 +429,7 @@ done
 
 ---
 
-## 16. Retry
+## 15. Retry
 
 **Purpose:** Retry a unit of actions on failure.
 
@@ -414,7 +451,7 @@ done
 
 ---
 
-## 17. Wait
+## 16. Wait
 
 **Purpose:** Wait for something to happen.
 
@@ -438,7 +475,7 @@ wait download
 
 ---
 
-## 18. Watch
+## 17. Watch
 
 **Purpose:** React to filesystem changes.
 
@@ -460,7 +497,7 @@ done
 
 ---
 
-## 19. Error handling (`or`)
+## 18. Error handling (`or`)
 
 **Purpose:** Fallback when something fails. Available on **every statement**.
 
@@ -497,32 +534,32 @@ done or log error
 
 ---
 
-## 20. Runtime architecture
+## 19. Runtime architecture
 
 ```
-E source code
+.eee file
      ↓
-Lexer (tokenizer)
+Section parser (:sys / :core / :ui)
      ↓
-Parser (recursive descent)
-     ↓
-AST (typed nodes)
-     ↓
-Executor (walks AST)
-     ↓
+:sys → PluginManager (libloading) → loads .so modules
+:core → Lexer → Parser → AST → Executor → Driver
+:ui   → WebView window (HTML/JS)
+```
+
+```
 Driver (interface)
  ├── DryDriver (logs everything, safe)
  └── RealDriver (actually executes)
-      ├── SchedulerDriver (APScheduler)
-      ├── FileDriver (filesystem I/O)
-      ├── BrowserDriver (Playwright)
-      ├── EmailDriver (SMTP — stub)
-      └── WatcherDriver (watchdog — stub)
+      ├── Browser (chromium via webview)
+      ├── File I/O (std::fs)
+      ├── Shell (subprocess)
+      ├── Email (lettre SMTP)
+      └── Watchdog (fs polling)
 ```
 
 ---
 
-## 21. Current status (v1.0)
+## 20. Current status (v3.1)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -554,37 +591,34 @@ Driver (interface)
 
 ---
 
-## 22. Complete example
+## 21. Complete example
 
-```e
-// Weekly report — every day at 2am
-time every day at 02:00 do
-    // 1. Extract data from server
-    with browser do
-        open "https://connect.api"
-        with page { timeout: 10s } do
-            login "user" "password" or stop
-            click "#export-all"
-            wait download
-        done
+```eee
+:sys
+use "db.eso"
+
+:core
+fn salva_utente nome do
+    sys_call "db.eso" "insert" nome
+    log "salvato: " + nome
+done
+
+do
+    for nome in ["Alice", "Bob"] do
+        salva_utente nome
     done
+done
 
-    // 2. Process downloaded files
-    watch "downloads/" do
-        with file "*.fit" do
-            upload to "https://fitness.db/import"
-            log "fit imported"
-        done
-    done
-
-    // 3. Notify
-    email to "admin@example.com" file "report.pdf"
-done or log error
+:ui
+<h1>Users</h1>
+<script>
+fetch('/api/users').then(r => r.json()).then(d => console.log(d));
+</script>
 ```
 
 ---
 
-## 23. CLI usage
+## 22. CLI usage
 
 ```bash
 # Build from source
@@ -598,5 +632,3 @@ e examples/hello.eee
 ```
 
 No dependencies required. Single binary.
-
-No dependencies. Single Rust binary.

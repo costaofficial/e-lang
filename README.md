@@ -2,65 +2,64 @@
 
 **E describes *when* to do something, *on what*, and *what to do*** — the runtime handles the rest.
 
+## Features
+
+- **Scripting** — shell commands, file I/O, variables, functions, conditions
+- **Automation** — browser, email, scheduling, file watching, retry
+- **Plugin system** — load Rust `.so` modules and call them from E
+- **3-tier files** — `:sys` (Rust plugins) + `:core` (E logic) + `:ui` (HTML/JS) in one `.eee` file
+- **Zero dependencies** — single binary, no runtime required
+
 ## Quick start
 
 ```bash
+# install
 git clone https://github.com/costaofficial/e-lang.git
-cd e-lang/e
-cargo run -- ../examples/hello.eee
-
-# build the binary
-cargo build --release
-./target/release/e examples/hello.eee
-```
-
-## Install globally
-
-```bash
-cd e-lang/e
-cargo build --release
+cd e-lang/e && cargo build --release
 sudo cp target/release/e /usr/local/bin/
+
+# run
 e examples/hello.eee
+e --live examples/bash_demo.eee
 ```
 
 ## Example
 
 ```eee
 :sys
-use "libhttp.so"
-use "libdb.so"
+use "db.eso"
+use "http.eso"
 
 :core
-fn pagina_utente id do
-    let dati = sys_call "libdb.so" "query" "SELECT * FROM users WHERE id = " + id
-    log dati
+fn salva_utente nome do
+    sys_call "db.eso" "insert" nome
+    log "utente salvato: " + nome
 done
 
+let users = sys_call "db.eso" "query" "SELECT * FROM users"
+for u in users do log u done
+
 :ui
-<script>
-function mostra() { document.title = "E app"; }
-</script>
+<h1>App</h1>
+<script>alert('pronto');</script>
 ```
 
 ## Examples
 
 | File | What it does |
 |------|-------------|
-| `examples/g.e` | Garmin Connect: login, export, download, email |
-| `examples/hello.e` | Opens Google, searches |
-| `examples/backup.e` | Writes a file, emails it |
-| `examples/bash_demo.e` | Bash replacement demo |
-| `examples/when_demo.e` | Conditions demo |
+| `examples/hello.eee` | Browser: open, find, click, log |
+| `examples/backup.eee` | File write + email |
+| `examples/bash_demo.eee` | Shell commands, variables, conditions |
+| `examples/when_demo.eee` | Conditions and logic |
+| `examples/login.eee` | Retry with fallback |
+| `examples/g.eee` | Full 3-tier script with plugin |
+| `examples/lib.eee` | Modules (use) |
 
 ## Documentation
 
 - [GRAMMATICA.md](GRAMMATICA.md) — formal grammar (EBNF)
 - [SPEC.md](SPEC.md) — full language specification
-
-## Status
-
-**v3.1** — 3-tier language: Rust plugins + E core + JS UI.
-Single binary, no dependencies. Plugin system via `.so` modules.
 
 ## License
 
