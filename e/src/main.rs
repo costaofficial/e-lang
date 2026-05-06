@@ -6,13 +6,14 @@ mod drivers;
 mod browser;
 mod email;
 mod sys;
+mod ui;
 
 use clap::Parser as ClapParser;
 use std::fs;
 use std::path::PathBuf;
 
 #[derive(ClapParser)]
-#[command(name = "e", version = "2.1.0", about = "E — general-purpose language")]
+#[command(name = "e", version = "3.1.0", about = "E — general-purpose language")]
 struct Cli {
     /// Script file to run
     file: PathBuf,
@@ -34,7 +35,6 @@ fn main() {
         }
     };
 
-    // Check if this is an .eee file with sections
     let has_sections = source.contains("\n:sys") || source.contains("\n:core") || source.contains("\n:ui")
         || source.starts_with(":sys") || source.starts_with(":core") || source.starts_with(":ui");
 
@@ -106,27 +106,26 @@ fn run_eee(filepath: &str, source: &str, live: bool) {
         }
     }
 
-    // Handle :ui section
-    if let Some(ref ui) = efile.ui_section {
-        println!("  🖥️ UI section ({} bytes)", ui.len());
-    }
-
-    // Handle :core section — execute E code
-    let mode_live = live;
-    if mode_live {
+    // Handle :core section — execute E code FIRST
+    if live {
         let mut driver = drivers::RealDriver::new();
         let mut scope = runtime::Scope::new();
-        // Register sys.call function in scope
-        scope.def_fn("sys.call", vec!["plugin".into(), "func".into(), "args".into()], vec![]);
         for node in &efile.core_section {
             runtime::exec_node(node, &mut scope, &mut driver);
         }
     } else {
         let mut driver = drivers::DryDriver::new();
         let mut scope = runtime::Scope::new();
-        scope.def_fn("sys.call", vec!["plugin".into(), "func".into(), "args".into()], vec![]);
         for node in &efile.core_section {
             runtime::exec_node(node, &mut scope, &mut driver);
+        }
+    }
+
+    // Handle :ui section — open window AFTER core
+    if let Some(ref ui) = efile.ui_section {
+        println!("  🖥️ Opening UI window...");
+        if live {
+            let _ = ui::Ui::open_window(ui);
         }
     }
 
