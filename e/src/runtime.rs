@@ -294,6 +294,9 @@ pub fn exec_node(node: &Node, scope: &mut Scope, driver: &mut dyn Driver) {
         Node::UseStatement(path) => {
             exec_use(path, scope, driver);
         }
+        Node::WatchNode(path, actions, _fb) => {
+            exec_watch(path, actions, scope, driver);
+        }
         _ => {}
     }
 }
@@ -330,6 +333,55 @@ fn exec_use(path: &str, scope: &mut Scope, driver: &mut dyn Driver) {
 
     for node in &nodes {
         exec_node(node, scope, driver);
+    }
+}
+
+fn exec_watch(path: &str, actions: &[Node], scope: &mut Scope, driver: &mut dyn Driver) {
+    use std::io::Read;
+    driver.log(&format!("👀 Watch: '{}'", path));
+
+    let watched_dir = std::path::Path::new(path);
+    if !watched_dir.exists() {
+        driver.log(&format!("⚠️ watch path '{}' does not exist", path));
+        return;
+    }
+
+    driver.log(&format!("  ✅ watching '{}'", path));
+
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Ok(entries) = std::fs::read_dir(watched_dir) {
+        for entry in entries.flatten() {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_file() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        seen.insert(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    loop {
+        if driver.should_stop() { break; }
+        std::thread::sleep(std::time::Duration::from_secs(2));
+
+        if let Ok(entries) = std::fs::read_dir(watched_dir) {
+            for entry in entries.flatten() {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_file() {
+                        if let Some(name) = entry.file_name().to_str() {
+                            if !seen.contains(name) {
+                                seen.insert(name.to_string());
+                                driver.log(&format!("  📄 new file: {}", name));
+                                for a in actions {
+                                    exec_node(a, scope, driver);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

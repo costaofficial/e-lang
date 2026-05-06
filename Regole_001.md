@@ -78,7 +78,7 @@ done
 
 👉 means:
 
-> work on this object
+> wa ork on this object
 
 ⚠️ rules you decided:
 
