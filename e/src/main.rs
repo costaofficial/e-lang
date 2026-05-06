@@ -3,6 +3,9 @@ mod lexer;
 mod parser;
 mod runtime;
 mod drivers;
+mod browser;
+mod email;
+
 
 use clap::Parser as ClapParser;
 use std::fs;

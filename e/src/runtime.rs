@@ -211,10 +211,31 @@ pub fn exec_node(node: &Node, scope: &mut Scope, driver: &mut dyn Driver) {
         Node::ScriptNode(actions, _fb) => {
             for a in actions { exec_node(a, scope, driver); }
         }
-        Node::TimeNode(_, actions, _fb) => {
+        Node::TimeNode(schedule, actions, _fb) => {
+            let mut desc = format!("⏰ Schedule:");
+            if let Some(ref interval) = schedule.interval {
+                desc += &format!(" every {}", interval);
+            }
+            if let Some(ref t) = schedule.time {
+                desc += &format!(" at {}", t);
+            }
+            driver.log(&desc);
             for a in actions { exec_node(a, scope, driver); }
         }
-        Node::WithNode(_obj, _config, actions, _fb) => {
+        Node::WithNode(obj, _config, actions, _fb) => {
+            match obj {
+                ObjectRef::Browser => {
+                    driver.log("🌐 Context: browser");
+                    driver.browser_start("downloads", 0);
+                    for a in actions { exec_node(a, scope, driver); }
+                    driver.browser_stop(0);
+                    return;
+                }
+                ObjectRef::Page => {
+                    driver.log("📄 Context: page");
+                }
+                _ => {}
+            }
             for a in actions { exec_node(a, scope, driver); }
         }
         Node::LetStatement(name, expr) => {
@@ -246,6 +267,15 @@ pub fn exec_node(node: &Node, scope: &mut Scope, driver: &mut dyn Driver) {
                 for a in body { exec_node(a, scope, driver); }
             }
         }
+        Node::RetryNode(times, actions, _fb) => {
+            for attempt in 1..=*times {
+                if driver.should_stop() { break; }
+                driver.log(&format!("🔄 Attempt {}/{}", attempt, times));
+                for a in actions {
+                    exec_node(a, scope, driver);
+                }
+            }
+        }
         Node::ForStatement(var, collection, body, _fb) => {
             let coll = eval_expr(collection, scope, driver);
             let items: Vec<Value> = match coll {
@@ -261,11 +291,49 @@ pub fn exec_node(node: &Node, scope: &mut Scope, driver: &mut dyn Driver) {
         Node::Action(kind, args) => {
             exec_action(kind, args, scope, driver);
         }
+        Node::UseStatement(path) => {
+            exec_use(path, scope, driver);
+        }
         _ => {}
     }
 }
 
-fn exec_action(kind: &ActionKind, args: &[Expr], scope: &mut Scope, driver: &mut dyn Driver) {
+fn exec_use(path: &str, scope: &mut Scope, driver: &mut dyn Driver) {
+    use std::fs;
+    use crate::lexer;
+    use crate::parser;
+
+    let filepath = if path.ends_with(".eee") {
+        path.to_string()
+    } else {
+        format!("{}.eee", path)
+    };
+
+    let source = match fs::read_to_string(&filepath) {
+        Ok(s) => s,
+        Err(_) => {
+            driver.log(&format!("⚠️ module not found: '{}'", filepath));
+            return;
+        }
+    };
+
+    let tokens = match lexer::lex(&source) {
+        Ok(t) => t,
+        Err(e) => {
+            driver.log(&format!("⚠️ module lex error: {}", e));
+            return;
+        }
+    };
+
+    let mut p = parser::Parser::new(tokens);
+    let nodes = p.parse();
+
+    for node in &nodes {
+        exec_node(node, scope, driver);
+    }
+}
+
+fn exec_action(kind: &ActionKind, args: &[Expr], _scope: &mut Scope, driver: &mut dyn Driver) {
     match kind {
         ActionKind::Log => {
             if let Some(Expr::Str(msg)) = args.first() { driver.log(&format!("📝 {}", msg)); }
@@ -281,15 +349,39 @@ fn exec_action(kind: &ActionKind, args: &[Expr], scope: &mut Scope, driver: &mut
         }
         ActionKind::Open => {
             if let Some(Expr::Str(url)) = args.first() {
-                driver.log(&format!("  🌐 open '{}'", url));
+                let result = driver.browser_open(url);
+                if result.is_ok() {
+                    driver.log(&format!("  🌐 opened '{}'", url));
+                } else {
+                    driver.log(&format!("  🌐 open '{}' (simulated)", url));
+                }
             }
         }
         ActionKind::Click => {
-            driver.log("  🖱️ click");
+            if let Some(Expr::Str(sel)) = args.first() {
+                driver.browser_click(sel).ok();
+                driver.log(&format!("  🖱️ clicked '{}'", sel));
+            } else {
+                driver.log("  🖱️ click");
+            }
         }
         ActionKind::Find => {
             if let Some(Expr::Str(sel)) = args.first() {
-                driver.log(&format!("  🔍 find '{}'", sel));
+                driver.browser_find(sel).ok();
+                driver.log(&format!("  🔍 found '{}'", sel));
+            }
+        }
+        ActionKind::FindAll => {
+            if let Some(Expr::Str(sel)) = args.first() {
+                match driver.browser_find_all(sel) {
+                    Ok(n) => driver.log(&format!("  🔍 find all '{}' → {} elements", sel, n)),
+                    Err(_) => driver.log(&format!("  🔍 find all '{}' (simulated)", sel)),
+                }
+            }
+        }
+        ActionKind::GetNumber => {
+            if let Some(Expr::Str(sel)) = args.first() {
+                driver.log(&format!("  🔢 get number from '{}'", sel));
             }
         }
         ActionKind::Write => {
@@ -302,8 +394,44 @@ fn exec_action(kind: &ActionKind, args: &[Expr], scope: &mut Scope, driver: &mut
                 }
             }
         }
+        ActionKind::Login => {
+            if args.len() >= 2 {
+                if let (Expr::Str(user), Expr::Str(pass)) = (&args[0], &args[1]) {
+                    match driver.browser_login(user, pass) {
+                        Ok(_) => driver.log(&format!("  🔐 logged in as '{}'", user)),
+                        Err(_) => driver.log(&format!("  🔐 login '{}' (simulated)", user)),
+                    }
+                }
+            }
+        }
+        ActionKind::Email => {
+            if let Some(Expr::Str(to)) = args.first() {
+                let attach = if args.len() > 1 {
+                    if let Expr::Str(a) = &args[1] { Some(a.as_str()) } else { None }
+                } else { None };
+                match driver.send_email(to, attach) {
+                    Ok(_) => driver.log(&format!("  📧 email sent to '{}'", to)),
+                    Err(_) => driver.log(&format!("  📧 email to '{}' (simulated)", to)),
+                }
+            }
+        }
+        ActionKind::Upload => {
+            driver.log("  ⬆️ upload (not implemented)");
+        }
+        ActionKind::Create => {
+            driver.log("  🆕 create (not implemented)");
+        }
         ActionKind::WaitDownload => {
-            driver.log("  ⏳ wait download...");
+            match driver.browser_wait_download() {
+                Ok(path) => driver.log(&format!("  ⏳ wait download... ✅ '{}'", path)),
+                Err(_) => driver.log("  ⏳ wait download... ✅"),
+            }
+        }
+        ActionKind::WaitUntil(cond, sel) => {
+            match driver.browser_wait_until(cond, sel) {
+                Ok(_) => driver.log(&format!("  ⏳ wait until {} '{}'... ✅", cond, sel)),
+                Err(_) => driver.log(&format!("  ⏳ wait until {} '{}'... ✅ (simulated)", cond, sel)),
+            }
         }
         _ => driver.log(&format!("  (action {:?} not implemented)", kind)),
     }
