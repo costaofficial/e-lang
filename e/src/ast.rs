@@ -72,6 +72,13 @@ pub enum Node {
 }
 
 #[derive(Debug, Clone)]
+pub struct Efile {
+    pub sys_section: Option<String>,
+    pub core_section: Vec<Node>,
+    pub ui_section: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Schedule {
     pub kind: String, // "every" or "at"
     pub interval: Option<String>,

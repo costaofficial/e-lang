@@ -1,6 +1,12 @@
 use std::collections::HashMap;
+use std::sync::Mutex;
 use crate::ast::*;
 use crate::drivers::Driver;
+use crate::sys::PluginManager;
+use once_cell::sync::Lazy;
+
+pub static PLUGIN_MANAGER: once_cell::sync::Lazy<Mutex<PluginManager>> =
+    once_cell::sync::Lazy::new(|| Mutex::new(PluginManager::new()));
 
 pub struct Scope {
     vars: HashMap<String, Value>,
@@ -55,6 +61,25 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
             scope.get_var(name).unwrap_or_else(|| panic!("variable '{}' not defined", name))
         }
         Expr::Call(name, args) => {
+            // Plugin call: sys_call "plugin" "func" "args"
+            if name == "sys_call" {
+                if args.len() < 2 {
+                    panic!("sys_call needs at least 2 arguments: plugin, function");
+                }
+                let plugin = eval_expr(&args[0], scope, driver);
+                let func = eval_expr(&args[1], scope, driver);
+                let args_str = if args.len() > 2 {
+                    let a = eval_expr(&args[2], scope, driver);
+                    format!("{}", a)
+                } else { String::new() };
+                let pm = PLUGIN_MANAGER.lock().unwrap();
+                let result = pm.call(&format!("{}", plugin), &format!("{}", func), &args_str);
+                return match result {
+                    Ok(r) => Value::Str(r),
+                    Err(e) => panic!("{}", e),
+                };
+            }
+
             let params: Vec<String>;
             let body: Vec<Node>;
             {

@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::lexer::*;
+use std::collections::HashMap;
 
 macro_rules! is_kw {
     ($t:expr, $kw:expr) => {{
@@ -534,7 +535,21 @@ impl Parser {
             TokenKind::Ident(s) => {
                 self.pop();
                 if matches!(self.peek().kind, TokenKind::LBracket) { Expr::Var(s) }
-                else if is_expr_start(&self.peek().kind) { Expr::Call(s, vec![self.parse_expr()]) }
+                else if is_expr_start(&self.peek().kind) {
+                    let mut args = vec![self.parse_expr()];
+                    let mut max_args = 10;
+                    while max_args > 0 && is_expr_start(&self.peek().kind) {
+                        if matches!(self.peek().kind, TokenKind::Do | TokenKind::Done | TokenKind::Newline | TokenKind::Eof | TokenKind::Or | TokenKind::RBracket | TokenKind::Comma) {
+                            break;
+                        }
+                        if matches!(self.peek().kind, TokenKind::Op(ref o) if matches!(o.as_str(), "+" | "-" | "*" | "/" | ">" | "<" | "=" | "==" | "!=" | ">=" | "<=" | ")" | "]" | "." | ",")) {
+                            break;
+                        }
+                        args.push(self.parse_expr());
+                        max_args -= 1;
+                    }
+                    Expr::Call(s, args)
+                }
                 else { Expr::Var(s) }
             }
             TokenKind::Item | TokenKind::Count | TokenKind::NumKw => {
@@ -562,6 +577,59 @@ impl Parser {
         }
         cur
     }
+}
+
+/// Parse an .eee file with :sys, :core, :ui sections.
+/// Falls back to parsing as normal E if no sections found.
+pub fn parse_eee(source: &str) -> Result<Efile, String> {
+    let lines: Vec<&str> = source.lines().collect();
+    let mut sections: HashMap<String, Vec<String>> = HashMap::new();
+    let mut current_section: Option<String> = None;
+
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with(":sys") || trimmed.starts_with(":core") || trimmed.starts_with(":ui") {
+            let name = trimmed[1..].trim().to_string();
+            current_section = Some(name.clone());
+            sections.entry(name).or_insert_with(Vec::new);
+            continue;
+        }
+        if let Some(ref sec) = current_section {
+            sections.get_mut(sec).unwrap().push(line.to_string());
+        }
+    }
+
+    let sys_text = sections.get("sys").map(|l| l.join("\n"));
+    let ui_text = sections.get("ui").map(|l| l.join("\n"));
+
+    let core_nodes = if let Some(core_lines) = sections.get("core") {
+        let core_text = core_lines.join("\n");
+        let wrapped = if core_text.trim().starts_with("do") {
+            core_text
+        } else {
+            format!("do\n{}\ndone", core_text)
+        };
+        let tokens = lex(&wrapped)?;
+        let mut p3 = Parser::new(tokens);
+        let all_nodes = p3.parse();
+        let mut result = Vec::new();
+        for n in all_nodes {
+            if let Node::ScriptNode(actions, _) = n {
+                result = actions;
+            } else {
+                result.push(n);
+            }
+        }
+        result
+    } else {
+        Vec::new()
+    };
+
+    Ok(Efile {
+        sys_section: sys_text,
+        core_section: core_nodes,
+        ui_section: ui_text,
+    })
 }
 
 fn set_fallback(node: &mut Node, fb: Vec<Node>) {
