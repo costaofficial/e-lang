@@ -409,14 +409,22 @@ impl Parser {
 
     fn parse_let(&mut self) -> Node {
         let _line = self.pop().line;
-        let n = match &self.pop().kind { TokenKind::Ident(s) => s.clone(), _ => panic!("expected identifier") };
+        let t = self.pop();
+        let n = match &t.kind {
+            TokenKind::Ident(s) => s.clone(),
+            _ => token_name(&t.kind),
+        };
         self.expect_ident("=");
         Node::LetStatement(n, self.parse_expr())
     }
 
     fn parse_fn(&mut self) -> Node {
         let _line = self.pop().line;
-        let n = match &self.pop().kind { TokenKind::Ident(s) => s.clone(), _ => panic!("expected identifier") };
+        let t = self.pop();
+        let n = match &t.kind {
+            TokenKind::Ident(s) => s.clone(),
+            _ => token_name(&t.kind),
+        };
         let mut p = Vec::new();
         while matches!(self.peek().kind, TokenKind::Ident(_)) {
             p.push(match self.pop().kind { TokenKind::Ident(s) => s, _ => unreachable!() });
@@ -428,7 +436,11 @@ impl Parser {
 
     fn parse_for(&mut self) -> Node {
         let _line = self.pop().line;
-        let v = match &self.pop().kind { TokenKind::Ident(s) => s.clone(), _ => panic!("expected identifier") };
+        let t = self.pop();
+        let v = match &t.kind {
+            TokenKind::Ident(s) => s.clone(),
+            _ => token_name(&t.kind),
+        };
         self.expect_ident("in"); let col = self.parse_expr();
         self.skip_newlines(); self.expect_ident("do");
         let a = self.parse_actions(); self.expect_ident("done");

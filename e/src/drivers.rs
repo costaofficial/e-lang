@@ -89,14 +89,18 @@ impl Driver for RealDriver {
 
     fn ls(&mut self, pattern: &str) -> Result<Vec<String>, String> {
         let mut results = Vec::new();
-        if let Some(parent) = Path::new(pattern).parent() {
-            if let Ok(entries) = fs::read_dir(parent) {
-                for entry in entries.flatten() {
-                    if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
-                        if let Some(name) = entry.file_name().to_str() {
-                            if glob_match(pattern, name) {
-                                results.push(entry.path().to_string_lossy().to_string());
-                            }
+        let path = Path::new(pattern);
+        let parent = path.parent().unwrap_or(Path::new("."));
+        // Extract the filename pattern from the full path pattern
+        let file_pattern = path.file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("*");
+        if let Ok(entries) = fs::read_dir(parent) {
+            for entry in entries.flatten() {
+                if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if glob_match(file_pattern, name) {
+                            results.push(entry.path().to_string_lossy().to_string());
                         }
                     }
                 }
