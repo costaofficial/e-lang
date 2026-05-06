@@ -13,6 +13,7 @@ fn token_name(k: &TokenKind) -> String {
     match k {
         TokenKind::Ident(s) => s.clone(),
         TokenKind::Number(_) => "number".into(),
+        TokenKind::Float(_) => "float".into(),
         TokenKind::String(_) => "string".into(),
         TokenKind::LBrace => "{".into(),
         TokenKind::RBrace => "}".into(),
@@ -68,6 +69,7 @@ fn token_name(k: &TokenKind) -> String {
         TokenKind::While => "while".into(),
         TokenKind::Len => "len".into(),
         TokenKind::Not => "not".into(),
+        TokenKind::And => "and".into(),
         TokenKind::Hour => "hour".into(),
         TokenKind::Day => "day".into(),
         TokenKind::Minute => "minute".into(),
@@ -82,11 +84,11 @@ fn token_name(k: &TokenKind) -> String {
 
 fn is_expr_start(k: &TokenKind) -> bool {
     matches!(k,
-        TokenKind::Number(_) | TokenKind::String(_) | TokenKind::Ident(_)
+        TokenKind::Number(_) | TokenKind::Float(_) | TokenKind::String(_) | TokenKind::Ident(_)
         | TokenKind::LBracket | TokenKind::Run | TokenKind::Read
         | TokenKind::Ls | TokenKind::Len | TokenKind::Not
         | TokenKind::Item | TokenKind::Count | TokenKind::NumKw
-    ) || matches!(k, TokenKind::Op(s) if s == "-" || s == "(")
+    ) || matches!(k, TokenKind::And) || matches!(k, TokenKind::Op(s) if s == "-" || s == "(")
 }
 
 pub struct Parser {
@@ -376,7 +378,9 @@ impl Parser {
     }
 
     fn parse_log(&mut self) -> Node {
-        let _line = self.pop().line; Node::ExprNode(self.parse_expr())
+        let _line = self.pop().line;
+        let expr = self.parse_expr();
+        Node::Action(ActionKind::Log, vec![expr])
     }
 
     fn parse_when(&mut self) -> Node {
@@ -461,7 +465,16 @@ impl Parser {
         let mut l = self.parse_addsub();
         loop {
             let k = self.peek().kind.clone();
-            let op = match &k { TokenKind::Op(s) if s == ">" || s == "<" || s == ">=" || s == "<=" || s == "==" || s == "!=" || s == "=" => s.clone(), _ => break };
+            if matches!(k, TokenKind::And) {
+                self.pop();
+                let r = self.parse_compare();
+                l = Expr::Bin(Box::new(l), Op::And, Box::new(r));
+                continue;
+            }
+            let op = match &k {
+                TokenKind::Op(s) if s == ">" || s == "<" || s == ">=" || s == "<=" || s == "==" || s == "!=" || s == "=" => s.clone(),
+                _ => break,
+            };
             self.pop();
             let r = self.parse_addsub();
             l = Expr::Bin(Box::new(l), match op.as_str() {
@@ -475,9 +488,12 @@ impl Parser {
     fn parse_addsub(&mut self) -> Expr {
         let mut l = self.parse_term();
         loop {
-            let k = self.peek().kind.clone();
-            let op = match &k { TokenKind::Op(s) if s == "+" || s == "-" => s.clone(), _ => break };
-            self.pop(); let r = self.parse_term();
+            let op = match &self.peek().kind {
+                TokenKind::Op(s) if s == "+" || s == "-" => s.clone(),
+                _ => break,
+            };
+            self.pop();
+            let r = self.parse_term();
             l = Expr::Bin(Box::new(l), if op == "+" { Op::Add } else { Op::Sub }, Box::new(r));
         }
         l
@@ -508,6 +524,7 @@ impl Parser {
         let k = self.peek().kind.clone();
         let result: Expr = match k {
             TokenKind::Number(n) => { self.pop(); Expr::Num(n) }
+            TokenKind::Float(f) => { self.pop(); Expr::Float(f) }
             TokenKind::String(s) => { self.pop(); Expr::Str(s) }
             TokenKind::Run => {
                 self.pop(); let cmd = match self.pop().kind { TokenKind::String(s) => s, _ => panic!("expected string") };
@@ -520,7 +537,7 @@ impl Parser {
                 let p = if matches!(self.peek().kind, TokenKind::String(_)) { match self.pop().kind { TokenKind::String(s) => s, _ => unreachable!() } } else { "*".into() };
                 Expr::Ls(p)
             }
-            TokenKind::Len => { self.pop(); Expr::Len(Box::new(self.parse_expr())) }
+            TokenKind::Len => { self.pop(); Expr::Len(Box::new(self.parse_unary())) }
             TokenKind::LBracket => {
                 self.pop();
                 let mut items = Vec::new();
@@ -536,16 +553,19 @@ impl Parser {
                 self.pop();
                 if matches!(self.peek().kind, TokenKind::LBracket) { Expr::Var(s) }
                 else if is_expr_start(&self.peek().kind) {
-                    let mut args = vec![self.parse_expr()];
+                    // Parse exactly one argument as a term (not full expr)
+                    let first_arg = self.parse_term();
+                    // Check for more space-separated arguments
+                    let mut args = vec![first_arg];
                     let mut max_args = 10;
                     while max_args > 0 && is_expr_start(&self.peek().kind) {
-                        if matches!(self.peek().kind, TokenKind::Do | TokenKind::Done | TokenKind::Newline | TokenKind::Eof | TokenKind::Or | TokenKind::RBracket | TokenKind::Comma) {
+                        if matches!(self.peek().kind, TokenKind::Do | TokenKind::Done | TokenKind::Newline | TokenKind::Eof | TokenKind::Or | TokenKind::RBracket | TokenKind::Comma | TokenKind::And) {
                             break;
                         }
                         if matches!(self.peek().kind, TokenKind::Op(ref o) if matches!(o.as_str(), "+" | "-" | "*" | "/" | ">" | "<" | "=" | "==" | "!=" | ">=" | "<=" | ")" | "]" | "." | ",")) {
                             break;
                         }
-                        args.push(self.parse_expr());
+                        args.push(self.parse_term());
                         max_args -= 1;
                     }
                     Expr::Call(s, args)
@@ -569,7 +589,16 @@ impl Parser {
                 } else { self.expect_ident("]"); cur = Expr::Index(Box::new(cur), Box::new(s)); }
             } else if matches!(self.peek().kind, TokenKind::Op(ref o) if o == ".") {
                 self.pop();
-                let m = match &self.pop().kind { TokenKind::Ident(s) => s.clone(), _ => panic!("expected method name") };
+                let t = self.pop();
+                let m = match &t.kind {
+                    TokenKind::Ident(s) => s.clone(),
+                    _ => {
+                        // Accept keywords as method names
+                        let name = token_name(&t.kind);
+                        if name.is_empty() { panic!("expected method name") }
+                        name
+                    }
+                };
                 let mut a = Vec::new();
                 if is_expr_start(&self.peek().kind) { a.push(self.parse_expr()); }
                 cur = Expr::Method(Box::new(cur), m, a);

@@ -35,13 +35,40 @@ fn main() {
         }
     };
 
+    // Set up panic hook to print user-friendly error instead of raw panic
+    let orig_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            format!("{:?}", info.payload())
+        };
+        eprintln!("❌ {}", msg);
+    }));
+
     let has_sections = source.contains("\n:sys") || source.contains("\n:core") || source.contains("\n:ui")
         || source.starts_with(":sys") || source.starts_with(":core") || source.starts_with(":ui");
 
-    if has_sections {
-        run_eee(&filepath, &source, cli.live);
-    } else {
-        run_e(&filepath, &source, cli.live);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if has_sections {
+            run_eee(&filepath, &source, cli.live);
+        } else {
+            run_e(&filepath, &source, cli.live);
+        }
+    }));
+
+    // Restore original hook
+    let _ = std::panic::take_hook();
+    std::panic::set_hook(orig_hook);
+
+    match result {
+        Ok(()) => {},
+        Err(_) => {
+            eprintln!("\n❌ Execution failed. Check the error above.");
+            std::process::exit(1);
+        }
     }
 }
 

@@ -4,19 +4,34 @@ use crate::ast::*;
 use crate::drivers::Driver;
 use crate::sys::PluginManager;
 use once_cell::sync::Lazy;
+use std::fmt;
 
+#[derive(Debug, Clone)]
+pub struct RuntimeError {
+    pub msg: String,
+    pub line: i64,
+}
+
+impl fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[line {}] {}", self.line, self.msg)
+    }
+}
+
+impl RuntimeError {
+    pub fn new(msg: &str, line: i64) -> Self {
+        RuntimeError { msg: msg.to_string(), line }
+    }
+}
+
+// Global plugin manager. Used by 3-tier files to load .so plugins.
+// TODO(v4): Replace with a thread-local or passed reference to avoid global state.
 pub static PLUGIN_MANAGER: once_cell::sync::Lazy<Mutex<PluginManager>> =
     once_cell::sync::Lazy::new(|| Mutex::new(PluginManager::new()));
 
 pub struct Scope {
     vars: HashMap<String, Value>,
     fns: HashMap<String, FnInfo>,
-}
-
-#[derive(Clone)]
-struct FnInfo {
-    params: Vec<String>,
-    body: Vec<Node>,
 }
 
 impl Scope {
@@ -39,6 +54,20 @@ impl Scope {
     pub fn get_fn(&self, name: &str) -> Option<&FnInfo> {
         self.fns.get(name)
     }
+
+    pub fn inherit(parent: &Scope) -> Scope {
+        // Create a child scope that copies parent's vars and fns
+        // This allows functions to see outer variables
+        let mut s = Scope { vars: parent.vars.clone(), fns: HashMap::new() };
+        s.fns.extend(parent.fns.clone());
+        s
+    }
+}
+
+#[derive(Clone)]
+struct FnInfo {
+    params: Vec<String>,
+    body: Vec<Node>,
 }
 
 impl Value {
@@ -46,6 +75,7 @@ impl Value {
         match self {
             Value::Bool(b) => *b,
             Value::Num(n) => *n != 0,
+            Value::Float(f) => *f != 0.0,
             Value::Str(s) => !s.is_empty(),
             Value::List(l) => !l.is_empty(),
             Value::Null => false,
@@ -56,6 +86,7 @@ impl Value {
 pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Value {
     match expr {
         Expr::Num(n) => Value::Num(*n),
+        Expr::Float(f) => Value::Float(*f),
         Expr::Str(s) => Value::Str(s.clone()),
         Expr::Var(name) => {
             scope.get_var(name).unwrap_or_else(|| panic!("variable '{}' not defined", name))
@@ -90,20 +121,23 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
             if args.len() != params.len() {
                 panic!("function '{}' expects {} args, got {}", name, params.len(), args.len());
             }
-            let mut child_vars: HashMap<String, Value> = HashMap::new();
+            let mut child_scope = Scope::inherit(scope);
             for (param, arg) in params.iter().zip(args.iter()) {
                 let val = eval_expr(arg, scope, driver);
-                child_vars.insert(param.clone(), val);
+                child_scope.def_var(param, val);
             }
-            // Create a temporary scope that also contains parent's functions
-            let mut child_scope = Scope::new();
-            child_scope.vars = child_vars;
-            child_scope.fns = scope.fns.clone();
             let mut result = Value::Null;
             for node in &body {
+                exec_node(node, &mut child_scope, driver);
+                // Track the last expression value for return
                 match node {
                     Node::ExprNode(e) => { result = eval_expr(e, &mut child_scope, driver); }
-                    _ => { exec_node(node, &mut child_scope, driver); }
+                    Node::Action(ActionKind::Log, args) => {
+                        if let Some(e) = args.first() {
+                            result = eval_expr(e, &mut child_scope, driver);
+                        }
+                    }
+                    _ => {}
                 }
             }
             result
@@ -114,18 +148,34 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
             match op {
                 Op::Add => match (&l, &r) {
                     (Value::Str(a), _) => Value::Str(format!("{}{}", a, r)),
-                    (Value::Num(a), Value::Num(b)) => Value::Num(a + b),
-                    _ => Value::Str(format!("{}{}", l, r)),
+                    _ => Value::Float(to_f64(&l) + to_f64(&r)),
                 },
                 Op::Sub => bin_num(l, r, |a, b| a - b),
                 Op::Mul => bin_num(l, r, |a, b| a * b),
                 Op::Div => bin_num(l, r, |a, b| a / b),
-                Op::Eq => Value::Bool(l == r),
-                Op::Neq => Value::Bool(l != r),
+                Op::Eq => Value::Bool({
+                    match (&l, &r) {
+                        (Value::Num(a), Value::Num(b)) => a == b,
+                        (Value::Float(a), Value::Float(b)) => (a - b).abs() < 0.0001,
+                        (Value::Num(a), Value::Float(b)) => (*a as f64 - b).abs() < 0.0001,
+                        (Value::Float(a), Value::Num(b)) => (a - *b as f64).abs() < 0.0001,
+                        _ => l == r,
+                    }
+                }),
+                Op::Neq => Value::Bool({
+                    match (&l, &r) {
+                        (Value::Num(a), Value::Num(b)) => a != b,
+                        (Value::Float(a), Value::Float(b)) => (a - b).abs() >= 0.0001,
+                        (Value::Num(a), Value::Float(b)) => (*a as f64 - b).abs() >= 0.0001,
+                        (Value::Float(a), Value::Num(b)) => (a - *b as f64).abs() >= 0.0001,
+                        _ => l != r,
+                    }
+                }),
                 Op::Gt => bin_bool(l, r, |a, b| a > b),
                 Op::Lt => bin_bool(l, r, |a, b| a < b),
                 Op::Gte => bin_bool(l, r, |a, b| a >= b),
                 Op::Lte => bin_bool(l, r, |a, b| a <= b),
+                Op::And => Value::Bool(l.is_truthy() && r.is_truthy()),
             }
         }
         Expr::Run(cmd, _stdin) => {
@@ -149,12 +199,10 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
         Expr::Index(container, idx) => {
             let c = eval_expr(container, scope, driver);
             let i = eval_expr(idx, scope, driver);
-            match (&c, &i) {
-                (Value::List(lst), Value::Num(n)) => lst[*n as usize].clone(),
-                (Value::Str(s), Value::Num(n)) => {
-                    let ch = s.chars().nth(*n as usize).unwrap_or(' ').to_string();
-                    Value::Str(ch)
-                }
+            let n = to_f64(&i) as usize;
+            match &c {
+                Value::List(lst) => lst.get(n).cloned().unwrap_or(Value::Null),
+                Value::Str(s) => Value::Str(s.chars().nth(n).unwrap_or(' ').to_string()),
                 _ => panic!("cannot index"),
             }
         }
@@ -162,9 +210,11 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
             let c = eval_expr(container, scope, driver);
             let s = eval_expr(start, scope, driver);
             let e = eval_expr(end, scope, driver);
-            match (&c, &s, &e) {
-                (Value::Str(st), Value::Num(a), Value::Num(b)) => {
-                    let s: String = st.chars().skip(*a as usize).take((*b - *a) as usize).collect();
+            let a = to_f64(&s) as usize;
+            let b = to_f64(&e) as usize;
+            match &c {
+                Value::Str(st) => {
+                    let s: String = st.chars().skip(a).take(b - a).collect();
                     Value::Str(s)
                 }
                 _ => panic!("cannot slice"),
@@ -191,18 +241,24 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
     }
 }
 
-fn bin_num(l: Value, r: Value, f: fn(i64, i64) -> i64) -> Value {
-    match (l, r) {
-        (Value::Num(a), Value::Num(b)) => Value::Num(f(a, b)),
-        _ => panic!("numeric operation on non-numbers"),
+fn to_f64(v: &Value) -> f64 {
+    match v {
+        Value::Num(n) => *n as f64,
+        Value::Float(f) => *f,
+        _ => 0.0,
     }
 }
 
-fn bin_bool(l: Value, r: Value, f: fn(i64, i64) -> bool) -> Value {
-    match (l, r) {
-        (Value::Num(a), Value::Num(b)) => Value::Bool(f(a, b)),
-        _ => Value::Bool(false),
-    }
+fn bin_num(l: Value, r: Value, f: fn(f64, f64) -> f64) -> Value {
+    let a = to_f64(&l);
+    let b = to_f64(&r);
+    Value::Float(f(a, b))
+}
+
+fn bin_bool(l: Value, r: Value, f: fn(f64, f64) -> bool) -> Value {
+    let a = to_f64(&l);
+    let b = to_f64(&r);
+    Value::Bool(f(a, b))
 }
 
 pub fn eval_condition(cond: &Condition, scope: &mut Scope, driver: &mut dyn Driver) -> bool {
@@ -210,21 +266,22 @@ pub fn eval_condition(cond: &Condition, scope: &mut Scope, driver: &mut dyn Driv
         Condition::ItemVisible => true,
         Condition::ItemHidden => false,
         Condition::Compare(target, op, val) => {
-            let actual = match target.as_str() {
+            let actual_f = match target.as_str() {
                 "number" => match scope.get_var("number") {
-                    Some(Value::Num(n)) => n,
+                    Some(v) => to_f64(&v),
                     _ => { driver.log("number is not set"); return false; }
                 },
                 "count" => match scope.get_var("count") {
-                    Some(Value::Num(n)) => n,
-                    _ => 0,
+                    Some(v) => to_f64(&v),
+                    _ => 0.0,
                 },
                 _ => return false,
             };
+            let v = *val as f64;
             match op.as_str() {
-                "=" => actual == *val, ">" => actual > *val,
-                "<" => actual < *val, ">=" => actual >= *val,
-                "<=" => actual <= *val, _ => false,
+                "=" => (actual_f - v).abs() < 0.0001, ">" => actual_f > v,
+                "<" => actual_f < v, ">=" => actual_f >= v,
+                "<=" => actual_f <= v, _ => false,
             }
         }
         Condition::Expression(expr) => eval_expr(expr, scope, driver).is_truthy(),
@@ -273,9 +330,10 @@ pub fn exec_node(node: &Node, scope: &mut Scope, driver: &mut dyn Driver) {
             driver.log(&format!("📦 fn {}({})", name, params.join(", ")));
         }
         Node::ExprNode(expr) => {
-            let val = eval_expr(expr, scope, driver);
-            // Let the driver handle display
-            driver.log(&format!("📝 {}", val));
+            let _val = eval_expr(expr, scope, driver);
+            // ExprNode is only for bare expressions (function calls, values)
+            // Logging is handled by ActionKind::Log
+            // The returned value is used when assigned via let x = expr
         }
         Node::WhenNode(cond, actions, _fb) => {
             let result = eval_condition(cond, scope, driver);
@@ -410,10 +468,13 @@ fn exec_watch(path: &str, actions: &[Node], scope: &mut Scope, driver: &mut dyn 
     }
 }
 
-fn exec_action(kind: &ActionKind, args: &[Expr], _scope: &mut Scope, driver: &mut dyn Driver) {
+fn exec_action(kind: &ActionKind, args: &[Expr], scope: &mut Scope, driver: &mut dyn Driver) {
     match kind {
         ActionKind::Log => {
-            if let Some(Expr::Str(msg)) = args.first() { driver.log(&format!("📝 {}", msg)); }
+            if let Some(expr) = args.first() {
+                let val = eval_expr(expr, scope, driver);
+                driver.log(&format!("📝 {}", val));
+            }
         }
         ActionKind::Stop => driver.set_stop(true),
         ActionKind::Run => {

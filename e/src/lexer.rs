@@ -12,10 +12,11 @@ pub enum TokenKind {
     When, All, Get, From, NumKw, Item, Count,
     Let, Fn, Run, Read, Ls,
     For, In, Use, Append,
-    While, Len, Not,
+    While, Len, Not, And,
     Hour, Day, Minute, S, Ms,
 
     Number(i64),
+    Float(f64),
     String(String),
     Ident(String),
 
@@ -60,7 +61,8 @@ fn key(s: &str) -> Option<TokenKind> {
         "ls" => TokenKind::Ls, "for" => TokenKind::For,
         "in" => TokenKind::In, "use" => TokenKind::Use,
         "append" => TokenKind::Append, "while" => TokenKind::While,
-        "len" => TokenKind::Len, "not" => TokenKind::Not,
+        "len" => TokenKind::Len,         "not" => TokenKind::Not,
+        "and" => TokenKind::And,
         "hour" => TokenKind::Hour, "day" => TokenKind::Day,
         "minute" => TokenKind::Minute, "s" => TokenKind::S,
         "ms" => TokenKind::Ms,
@@ -91,8 +93,17 @@ pub fn lex(source: &str) -> Result<Vec<Token>, String> {
             ch if ch.is_ascii_digit() => {
                 let s = i;
                 while i < c.len() && c[i].is_ascii_digit() { i += 1; }
-                let n: String = c[s..i].iter().collect();
-                tokens.push(Token { kind: TokenKind::Number(n.parse().unwrap()), line });
+                let is_float = i < c.len() && c[i] == '.' && i + 1 < c.len() && c[i+1].is_ascii_digit();
+                if is_float {
+                    i += 1; // skip .
+                    while i < c.len() && c[i].is_ascii_digit() { i += 1; }
+                    let n: String = c[s..i].iter().collect();
+                    let val: f64 = n.parse().unwrap();
+                    tokens.push(Token { kind: TokenKind::Float(val), line });
+                } else {
+                    let n: String = c[s..i].iter().collect();
+                    tokens.push(Token { kind: TokenKind::Number(n.parse().unwrap()), line });
+                }
             }
             ch if ch.is_ascii_alphabetic() || ch == '_' => {
                 let s = i;

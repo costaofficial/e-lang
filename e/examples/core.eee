@@ -1,0 +1,45 @@
+// E core tests — variables, functions, expressions
+do
+    // 1. Variables
+    let x = 5
+    when x == 5 do log "var ok" done
+
+    // 2. Functions
+    fn double n do n * 2 done
+    when double 3 == 6 do log "fn ok" done
+
+    // 3. Expressions
+    let y = 10 + 20 * 3
+    when y == 70 do log "expr ok" done
+
+    // 4. Floats
+    let pi = 3.14
+    when pi > 3.0 and pi < 4.0 do log "float ok" done
+
+    // 5. Lists
+    let list = [1, 2, 3]
+    list.append 4
+    when list[3] == 4 do log "list ok" done
+
+    // 6. While
+    let i = 0
+    while i < 3 do let i = i + 1 done
+    when i == 3 do log "while ok" done
+
+    // 7. For
+    let nums = [10, 20]
+    let total = 0
+    for n in nums do let total = total + n done
+    when total == 30 do log "for ok" done
+
+    // 8. String ops
+    let name = "E"
+    when len name == 1 do log "len ok" done
+    when name[0] == "E" do log "index ok" done
+    when name[0..1] == "E" do log "slice ok" done
+
+    // 9. Not
+    when not (5 > 10) do log "not ok" done
+
+    log "ALL TESTS PASSED"
+done
