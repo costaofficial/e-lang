@@ -592,14 +592,14 @@ Driver (interface)
 use "db.eso"
 
 :core
-fn salva_utente nome do
-    sys_call "db.eso" "insert" nome
-    log "salvato: " + nome
+fn save_user name do
+    sys_call "db.eso" "insert" name
+    log "saved: " + name
 done
 
 do
-    for nome in ["Alice", "Bob"] do
-        salva_utente nome
+    for name in ["Alice", "Bob"] do
+        save_user name
     done
 done
 

@@ -79,10 +79,10 @@ use <span class="s">"http"</span>
 use <span class="s">"db"</span>
 
 <span class="k">:core</span>
-<span class="k">fn</span> salva nome <span class="k">do</span>
+<span class="k">fn</span> save_user name <span class="k">do</span>
     <span class="k">let</span> data = sys_call <span class="s">"http"</span> <span class="s">"e_get"</span> <span class="s">"https://api.example.com"</span>
     sys_call <span class="s">"db"</span> <span class="s">"e_query"</span> <span class="s">"users"</span> <span class="s">"INSERT INTO data VALUES (data)"</span>
-    log <span class="s">"salvato"</span>
+    log <span class="s">"saved"</span>
 <span class="k">done</span>
 
 <span class="k">:ui</span>
@@ -128,7 +128,7 @@ const lines = [
   { t:'',  v:'use "http"' },
   { t:'',  v:'' },
   { t:'',  v:':core' },
-  { t:'',  v:'fn salva nome do' },
+  { t:'',  v:'fn save_user name do' },
   { t:'c', v:'    // call HTTP API, save to DB' },
   { t:'',  v:'    let data = sys_call "http" "e_get" "https://api.ex.com"' },
   { t:'',  v:'    log "saved: " + data' },
