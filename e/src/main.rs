@@ -97,7 +97,7 @@ fn run_e(filepath: &str, source: &str, live: bool, watch: bool, script_args: &[S
         p.parse()
     };
 
-    println!("▶️  E — {} (dry-run)", filepath);
+    println!("▶️  E — {} ({})", filepath, if live { "live" } else { "dry-run" });
     println!("{}", "=".repeat(60));
 
     if live {

@@ -1,76 +1,182 @@
-use std::process::Command;
+use headless_chrome::{Browser as HcBrowser, LaunchOptions, Tab};
+use std::sync::Arc;
 
 pub struct Browser {
-    running: bool,
-    page_connected: bool,
-    _phantom: (),
+    browser: Option<Arc<HcBrowser>>,
+    tab: Option<Arc<Tab>>,
+    download_dir: String,
 }
 
 impl Browser {
     pub fn new() -> Self {
-        Browser { running: false, page_connected: false, _phantom: () }
+        Browser { browser: None, tab: None, download_dir: "downloads".into() }
     }
 
-    pub fn start(&mut self, _download_dir: &str) {
-        self.running = true;
+    pub fn start(&mut self, download_dir: &str) {
+        self.download_dir = download_dir.to_string();
+    }
+
+    fn ensure_browser(&mut self) -> Result<(), String> {
+        if self.browser.is_some() { return Ok(()); }
+
+        let launch_opts = LaunchOptions {
+            headless: false,
+            sandbox: false,
+            window_size: Some((1280, 720)),
+            ..LaunchOptions::default()
+        };
+
+        let browser = HcBrowser::new(launch_opts)
+            .map_err(|e| format!("launch: {}", e))?;
+        let tab = browser.new_tab()
+            .map_err(|e| format!("new tab: {}", e))?;
+
+        self.browser = Some(Arc::new(browser));
+        self.tab = Some(tab);
+        Ok(())
     }
 
     pub fn close(&mut self) {
-        self.running = false;
-        self.page_connected = false;
+        self.tab = None;
+        self.browser = None;
     }
 
     pub fn is_running(&self) -> bool {
-        self.running
+        self.browser.is_some()
     }
 
     pub fn open(&mut self, url: &str) -> Result<(), String> {
-        let browsers = ["google-chrome", "google-chrome-stable", "chromium-browser", "chromium"];
-        let mut launched = false;
-        for browser in &browsers {
-            if let Ok(_) = Command::new(browser).arg("--new-window").arg(url).spawn() {
-                self.running = true;
-                self.page_connected = true;
-                launched = true;
+        self.ensure_browser()?;
+        self.tab.as_ref().unwrap().navigate_to(url)
+            .map_err(|e| format!("navigate: {}", e))?;
+        Ok(())
+    }
+
+    pub fn click(&mut self, selector: &str) -> Result<(), String> {
+        self.ensure_browser()?;
+        let tab = self.tab.as_ref().unwrap();
+        let el = tab.wait_for_element(selector)
+            .map_err(|e| format!("wait for '{}': {}", selector, e))?;
+        el.click()
+            .map_err(|e| format!("click '{}': {}", selector, e))?;
+        Ok(())
+    }
+
+    pub fn find(&mut self, selector: &str) -> Result<(), String> {
+        self.ensure_browser()?;
+        self.tab.as_ref().unwrap().wait_for_element(selector)
+            .map_err(|e| format!("find '{}': {}", selector, e))?;
+        Ok(())
+    }
+
+    pub fn login(&mut self, user: &str, pass: &str) -> Result<(), String> {
+        self.ensure_browser()?;
+        let tab = self.tab.as_ref().unwrap();
+
+        // Find and fill username field
+        let user_selectors = [
+            "input[type='email']", "input[name='email']",
+            "input[type='text'][name='username']", "input[name='login']",
+            "input[autocomplete='username']", "#username", "#email",
+        ];
+        let mut logged_in = false;
+        for sel in &user_selectors {
+            if let Ok(el) = tab.find_element(sel) {
+                el.click().map_err(|e| format!("click user: {}", e))?;
+                el.type_into(user).map_err(|e| format!("type user: {}", e))?;
+                logged_in = true;
                 break;
             }
         }
-        if !launched {
-            if let Ok(_) = Command::new("xdg-open").arg(url).spawn() {
-                self.running = true;
-                self.page_connected = true;
-                launched = true;
+        if !logged_in {
+            // Try first text input
+            if let Ok(inputs) = tab.find_elements("input[type='text']") {
+                if let Some(el) = inputs.first() {
+                    el.type_into(user).map_err(|e| format!("type user: {}", e))?;
+                }
             }
         }
-        if launched { Ok(()) }
-        else { Err("no browser found (tried: google-chrome, chromium-browser, xdg-open)".into()) }
-    }
 
-    pub fn click(&mut self, _selector: &str) -> Result<(), String> {
-        Err("click needs chromiumoxide".into())
-    }
+        // Find and fill password field
+        let pass_selectors = [
+            "input[type='password']", "#password", "input[name='password']",
+            "input[autocomplete='current-password']",
+        ];
+        let mut pass_found = false;
+        for sel in &pass_selectors {
+            if let Ok(el) = tab.find_element(sel) {
+                el.type_into(pass).map_err(|e| format!("type pass: {}", e))?;
+                pass_found = true;
+                break;
+            }
+        }
+        if !pass_found {
+            return Err("password field not found".into());
+        }
 
-    pub fn find(&mut self, _selector: &str) -> Result<(), String> {
-        Err("find needs chromiumoxide".into())
-    }
-
-    pub fn login(&mut self, _user: &str, _pass: &str) -> Result<(), String> {
-        Err("login needs chromiumoxide".into())
+        // Click submit
+        let submit_selectors = [
+            "button[type='submit']", "input[type='submit']",
+        ];
+        for sel in &submit_selectors {
+            if let Ok(el) = tab.find_element(sel) {
+                el.click().ok();
+                return Ok(());
+            }
+        }
+        // Press Enter as fallback
+        tab.press_key("Enter").ok();
+        Ok(())
     }
 
     pub fn wait_download(&mut self) -> Result<String, String> {
-        Err("wait download needs chromiumoxide".into())
+        // headless_chrome doesn't have direct download support
+        Err("wait_download needs file system polling (not implemented)".into())
     }
 
-    pub fn find_all(&mut self, _selector: &str) -> Result<usize, String> {
-        Err("find all needs chromiumoxide".into())
+    pub fn find_all(&mut self, selector: &str) -> Result<usize, String> {
+        self.ensure_browser()?;
+        let elements = self.tab.as_ref().unwrap().find_elements(selector)
+            .map_err(|e| format!("find all '{}': {}", selector, e))?;
+        Ok(elements.len())
     }
 
-    pub fn get_number(&mut self, _selector: &str) -> Result<f64, String> {
-        Err("get number needs chromiumoxide".into())
+    pub fn get_number(&mut self, selector: &str) -> Result<f64, String> {
+        self.ensure_browser()?;
+        let tab = self.tab.as_ref().unwrap();
+        let el = tab.wait_for_element(selector)
+            .map_err(|e| format!("find '{}': {}", selector, e))?;
+        let text = el.get_inner_text()
+            .map_err(|e| format!("text: {}", e))?;
+        let re = regex::Regex::new(r"[\d.]+").unwrap();
+        if let Some(m) = re.find(&text) {
+            m.as_str().parse::<f64>()
+                .map_err(|_| format!("cannot parse number from '{}'", &text))
+        } else {
+            Err(format!("no number found in '{}'", &text))
+        }
     }
 
-    pub fn wait_until(&mut self, _condition: &str, _selector: &str) -> Result<(), String> {
-        Err("wait until needs chromiumoxide".into())
+    pub fn wait_until(&mut self, condition: &str, selector: &str) -> Result<(), String> {
+        self.ensure_browser()?;
+        let tab = self.tab.as_ref().unwrap();
+        match condition {
+            "visible" => {
+                tab.wait_for_element(selector)
+                    .map_err(|e| format!("wait visible '{}': {}", selector, e))?;
+                Ok(())
+            }
+            "hidden" => {
+                // Poll for element to disappear
+                for _ in 0..100 {
+                    if tab.find_element(selector).is_err() {
+                        return Ok(());
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                Err("element still visible after timeout".into())
+            }
+            _ => Err(format!("unknown condition: {}", condition)),
+        }
     }
 }
