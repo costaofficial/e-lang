@@ -1,59 +1,172 @@
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
+
+type PluginFn = fn(&str) -> String;
 
 pub struct PluginManager {
-    loaded: HashMap<String, Plugin>,
-}
-
-struct Plugin {
-    _path: String,
-    library: libloading::Library,
+    plugins: HashMap<String, HashMap<String, PluginFn>>,
+    loaded: HashMap<String, bool>,
 }
 
 impl PluginManager {
     pub fn new() -> Self {
-        PluginManager { loaded: HashMap::new() }
+        PluginManager { plugins: HashMap::new(), loaded: HashMap::new() }
+    }
+
+    pub fn register(&mut self, name: &str, functions: HashMap<String, PluginFn>) {
+        self.plugins.insert(name.to_string(), functions);
+        self.loaded.insert(name.to_string(), true);
     }
 
     pub fn load(&mut self, path: &str) -> Result<(), String> {
         if self.loaded.contains_key(path) {
             return Ok(());
         }
-        let lib = unsafe {
-            libloading::Library::new(path)
-                .map_err(|e| format!("cannot load '{}': {}", path, e))?
-        };
-        self.loaded.insert(path.to_string(), Plugin {
-            _path: path.to_string(),
-            library: lib,
-        });
-        Ok(())
+        Err(format!("plugin '{}' not built-in. Available: json, fs, db", path))
     }
 
     pub fn call(&self, plugin: &str, func: &str, args: &str) -> Result<String, String> {
-        let p = self.loaded.get(plugin)
-            .ok_or_else(|| format!("plugin '{}' not loaded", plugin))?;
-
-        // Try calling e_hello (string -> string)
-        let result = unsafe {
-            let fn_ptr: libloading::Symbol<unsafe extern "C" fn(*const c_char) -> *mut c_char> =
-                p.library.get(func.as_bytes())
-                    .map_err(|e| format!("function '{}' not found in '{}': {}", func, plugin, e))?;
-            let c_input = CString::new(args).map_err(|_| "invalid string".to_string())?;
-            let c_result = fn_ptr(c_input.as_ptr());
-            let result_str = CStr::from_ptr(c_result).to_string_lossy().into_owned();
-            // Free the returned string
-            let free_fn: libloading::Symbol<unsafe extern "C" fn(*mut c_char)> =
-                p.library.get(b"e_free")
-                    .map_err(|_| format!("e_free not found in '{}'", plugin))?;
-            free_fn(c_result);
-            result_str
-        };
-        Ok(result)
+        let p = self.plugins.get(plugin)
+            .ok_or_else(|| format!("plugin '{}' not registered", plugin))?;
+        let f = p.get(func)
+            .ok_or_else(|| format!("function '{}' not found in '{}'", func, plugin))?;
+        Ok(f(args))
     }
 
     pub fn has(&self, path: &str) -> bool {
         self.loaded.contains_key(path)
+    }
+
+    pub fn register_std(&mut self) {
+        // Register standard library plugins as built-in functions
+        let mut http_fns: HashMap<String, PluginFn> = HashMap::new();
+        http_fns.insert("e_get".to_string(), sys_http_get);
+        http_fns.insert("e_post".to_string(), sys_http_post);
+        self.register("http", http_fns);
+
+        let mut json_fns: HashMap<String, PluginFn> = HashMap::new();
+        json_fns.insert("e_parse".to_string(), sys_json_parse);
+        json_fns.insert("e_stringify".to_string(), sys_json_stringify);
+        self.register("json", json_fns);
+
+        let mut fs_fns: HashMap<String, PluginFn> = HashMap::new();
+        fs_fns.insert("e_exists".to_string(), sys_fs_exists);
+        fs_fns.insert("e_size".to_string(), sys_fs_size);
+        fs_fns.insert("e_copy".to_string(), sys_fs_copy);
+        fs_fns.insert("e_delete".to_string(), sys_fs_delete);
+        self.register("fs", fs_fns);
+
+        let mut db_fns: HashMap<String, PluginFn> = HashMap::new();
+        db_fns.insert("e_open".to_string(), sys_db_open);
+        db_fns.insert("e_query".to_string(), sys_db_query);
+        self.register("db", db_fns);
+    }
+}
+
+fn json_result(s: &str) -> String {
+    format!("{{\"ok\": true, \"result\": {}}}", s)
+}
+
+// JSON plugin
+fn sys_json_parse(input: &str) -> String {
+    match serde_json::from_str::<serde_json::Value>(input) {
+        Ok(v) => serde_json::to_string_pretty(&v).unwrap_or_else(|_| input.to_string()),
+        Err(e) => format!("{{\"error\": \"{}\"}}", e),
+    }
+}
+
+fn sys_json_stringify(input: &str) -> String {
+    match serde_json::from_str::<serde_json::Value>(input) {
+        Ok(v) => v.to_string(),
+        Err(_) => format!("\"{}\"", input.replace('"', "\\\"")),
+    }
+}
+
+// FS plugin
+fn sys_fs_exists(path: &str) -> String {
+    if std::path::Path::new(path).exists() { "true".to_string() } else { "false".to_string() }
+}
+
+fn sys_fs_size(path: &str) -> String {
+    std::fs::metadata(path).map(|m| m.len().to_string()).unwrap_or_else(|_| "0".to_string())
+}
+
+fn sys_fs_copy(args: &str) -> String {
+    let parts: Vec<&str> = args.splitn(2, '|').collect();
+    if parts.len() < 2 { return "{{\"error\": \"need src|dst\"}}".to_string(); }
+    match std::fs::copy(parts[0], parts[1]) {
+        Ok(n) => format!("{{\"ok\": true, \"bytes\": {}}}", n),
+        Err(e) => format!("{{\"error\": \"{}\"}}", e),
+    }
+}
+
+fn sys_fs_delete(path: &str) -> String {
+    match std::fs::remove_file(path) {
+        Ok(_) => "true".to_string(),
+        Err(e) => format!("false: {}", e),
+    }
+}
+
+// DB plugin (in-memory + file-backed JSON)
+use std::sync::Mutex;
+static DB: once_cell::sync::Lazy<Mutex<HashMap<String, Vec<HashMap<String, String>>>>> =
+    once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn sys_db_open(_path: &str) -> String {
+    "{\"ok\": true}".to_string()
+}
+
+// HTTP plugin
+fn sys_http_get(url: &str) -> String {
+    match ureq::get(url).call() {
+        Ok(resp) => match resp.into_string() {
+            Ok(body) => serde_json::to_string(&body).unwrap_or_else(|_| format!("\"{}\"", body)),
+            Err(e) => format!("{{\"error\": \"read failed: {}\"}}", e),
+        },
+        Err(e) => format!("{{\"error\": \"{}\"}}", e),
+    }
+}
+
+fn sys_http_post(args: &str) -> String {
+    let parts: Vec<&str> = args.splitn(2, '|').collect();
+    if parts.len() < 2 { return "{{\"error\": \"need url|body\"}}".to_string(); }
+    match ureq::post(parts[0]).send_string(parts[1]) {
+        Ok(resp) => match resp.into_string() {
+            Ok(body) => body,
+            Err(e) => format!("{{\"error\": \"read failed: {}\"}}", e),
+        },
+        Err(e) => format!("{{\"error\": \"{}\"}}", e),
+    }
+}
+
+fn sys_db_query(input: &str) -> String {
+    let parts: Vec<&str> = input.splitn(2, '|').collect();
+    let _table = parts.get(0).unwrap_or(&"");
+    let sql = parts.get(1).unwrap_or(&"");
+    let sql_upper = sql.trim().to_uppercase();
+    let mut db = DB.lock().unwrap();
+
+    if sql_upper.starts_with("CREATE") {
+        let table_name = sql.split_whitespace().nth(2).unwrap_or("table");
+        db.entry(table_name.to_string()).or_insert_with(Vec::new);
+        format!("{{\"ok\": true, \"table\": \"{}\"}}", table_name)
+    } else if sql_upper.starts_with("INSERT") {
+        let table_name = sql.split_whitespace().nth(2).unwrap_or("table");
+        let rows = db.entry(table_name.to_string()).or_insert_with(Vec::new);
+        if let Some(values_start) = sql.find("VALUES") {
+            let values_str = &sql[values_start + 6..].trim().trim_matches(&['(', ')'][..]);
+            let mut row = HashMap::new();
+            for (i, val) in values_str.split(',').enumerate() {
+                let v = val.trim().trim_matches('\'');
+                row.insert(format!("col{}", i), v.to_string());
+            }
+            rows.push(row);
+        }
+        format!("{{\"ok\": true, \"table\": \"{}\"}}", table_name)
+    } else if sql_upper.starts_with("SELECT") {
+        let table_name = sql.split_whitespace().nth(3).unwrap_or("table");
+        let rows = db.get(table_name).cloned().unwrap_or_default();
+        serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into())
+    } else {
+        "null".to_string()
     }
 }

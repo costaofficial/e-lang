@@ -97,14 +97,24 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
                 if args.len() < 2 {
                     panic!("sys_call needs at least 2 arguments: plugin, function");
                 }
-                let plugin = eval_expr(&args[0], scope, driver);
+                let plugin_val = eval_expr(&args[0], scope, driver);
                 let func = eval_expr(&args[1], scope, driver);
                 let args_str = if args.len() > 2 {
                     let a = eval_expr(&args[2], scope, driver);
                     format!("{}", a)
                 } else { String::new() };
+
+                // Resolve plugin path to built-in name
+                let plugin = format!("{}", plugin_val);
+                let resolved = std::path::Path::new(&plugin)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.trim_start_matches("lib").trim_end_matches(".eso").to_string())
+                    .unwrap_or_else(|| plugin.clone());
+
                 let pm = PLUGIN_MANAGER.lock().unwrap();
-                let result = pm.call(&format!("{}", plugin), &format!("{}", func), &args_str);
+                let result = pm.call(&resolved, &format!("{}", func), &args_str)
+                    .or_else(|_| pm.call(&plugin, &format!("{}", func), &args_str));
                 return match result {
                     Ok(r) => Value::Str(r),
                     Err(e) => panic!("{}", e),

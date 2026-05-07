@@ -1,33 +1,43 @@
 :sys
-use "../packages/libjson.eso"
-use "../packages/libfs.eso"
-use "../packages/libdb.eso"
+use "json"
+use "fs"
+use "db"
+use "http"
 
 :core
 do
-    log "=== TEST PLUGINS ==="
+    log "=== TEST STANDARD LIBRARY ==="
 
-    // JSON — parse and stringify
-    let str = sys_call "../packages/libjson.eso" "e_stringify" "Ciao Mondo"
-    log "JSON.stringify: " + str
+    // JSON
+    let parsed = sys_call "json" "e_parse" "true"
+    log "JSON.parse: " + parsed
 
-    let parsed = sys_call "../packages/libjson.eso" "e_parse" "true"
-    log "JSON.parse true: " + parsed
+    let str = sys_call "json" "e_stringify" "E language"
     log "JSON.stringify: " + str
 
     // FS
-    let exists = sys_call "../packages/libfs.eso" "e_exists" "Cargo.toml"
-    log "FS.exists Cargo.toml: " + exists
+    let exists = sys_call "fs" "e_exists" "Cargo.toml"
+    log "FS.exists: " + exists
 
-    let size = sys_call "../packages/libfs.eso" "e_size" "Cargo.toml"
-    log "FS.size Cargo.toml: " + size + " bytes"
+    let size = sys_call "fs" "e_size" "Cargo.toml"
+    log "FS.size: " + size + " bytes"
 
     // DB
-    let opened = sys_call "../packages/libdb.eso" "e_open" "test.db"
-    log "DB.open: " + opened
+    let create = sys_call "db" "e_query" "users|CREATE TABLE t"
+    log "DB.create: " + create
 
-    log "=== ALL PLUGIN TESTS PASSED ==="
+    let insert = sys_call "db" "e_query" "users|INSERT INTO t VALUES (1, Alice)"
+    log "DB.insert: " + insert
+
+    let select = sys_call "db" "e_query" "users|SELECT * FROM t"
+    log "DB.select: " + select
+
+    // HTTP
+    let http = sys_call "http" "e_get" "https://example.com"
+    log "HTTP.get length: " + len http + " chars"
+
+    log "=== ALL TESTS PASSED ==="
 done
 
 :ui
-<h1>E plugins test</h1>
+<h1>E standard library</h1>

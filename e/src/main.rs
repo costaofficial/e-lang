@@ -121,12 +121,20 @@ fn run_eee(filepath: &str, source: &str, live: bool) {
     // Handle :sys section — load plugins
     if let Some(ref sys) = efile.sys_section {
         let mut pm = runtime::PLUGIN_MANAGER.lock().unwrap();
+        // Register standard library plugins
+        pm.register_std();
         for line in sys.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("use ") {
                 let path = trimmed[4..].trim().trim_matches('"');
+                // Handle built-in plugins by name
+                let plugin_name = std::path::Path::new(path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.trim_start_matches("lib").trim_end_matches(".eso"))
+                    .unwrap_or(path);
                 match pm.load(path) {
-                    Ok(_) => println!("  🔌 loaded plugin: {}", path),
+                    Ok(_) => println!("  🔌 loaded plugin: {}", plugin_name),
                     Err(e) => eprintln!("  ⚠️ {}", e),
                 }
             }
