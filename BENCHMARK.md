@@ -1,6 +1,6 @@
 # E vs Python — Benchmark
 
-> Test reali eseguiti su Ubuntu 24.04, Intel x86_64, 8GB RAM
+> Real tests on Ubuntu 24.04, Intel x86_64, 8GB RAM
 > E v5.0 (Rust, debug build) — Python 3.12
 
 ---
@@ -55,7 +55,7 @@ done
 |---------|---|--------|-------|
 | Tempo reale | ~0.06s | ~0.50s | **E ~8x più veloce** |
 | CPU user | 0.04s | 0.34s | **E ~8x più veloce** |
-| Risultato | 999999000000 | 999999000000 | ✅ Identico |
+| Result | 999999000000 | 999999000000 | ✅ Same |
 
 ---
 
@@ -95,22 +95,22 @@ Python vince perché `write file` in E fa una system call per iterazione (non c'
 |---------|---|--------|
 | Tempo reale | ~0.06s | ~0.06s |
 
-**Identico** — entrambi ottimizzano chiamate ricorsive in modo simile.
+**Similar** — both handle recursive calls efficiently.
 
 ---
 
-## Riepilogo
+## Summary
 
-| Test | Vincitore | Note |
-|------|-----------|------|
-| Binary size / deploy | **E** | Singolo binario 8 MB vs Python + librerie |
-| Startup | **Pari** | Entrambi ~0.05s |
-| CPU (1M loop) | **E** (~8x) | Compilato vs interpretato |
-| File I/O | **Python** | E manca di buffering |
-| Subprocess | **E** (leggero) | No GIL overhead |
-| Memoria | **Python** | E in debug mode è grande |
-| Ricorsione | **Pari** | Prestazioni simili |
-| Ecosistema | **Python** | ML, data science, librerie |
+| Test | Winner | Notes |
+|------|--------|-------|
+| Binary size / deploy | **E** | Single 8 MB binary vs Python + libs |
+| Startup | **Tie** | Both ~0.05s |
+| CPU (1M loop) | **E** (~8x) | Compiled vs interpreted |
+| File I/O | **Python** | E has no write buffering |
+| Subprocess | **E** (slight) | No GIL overhead |
+| Memory | **Python** | E debug build is large |
+| Recursion | **Tie** | Similar performance |
+| Ecosystem | **Python** | ML, data science, libraries |
 | Deploy | **E** | `sudo cp e /usr/local/bin/` |
 
 
@@ -119,7 +119,7 @@ Python vince perché `write file` in E fa una system call per iterazione (non c'
 ```
 === 1. Binary size ===
 E: 196086040 bytes (187M debug)
-Python: (interpretato, nessun binario)
+Python: (interpreted, no binary file)
 
 === 2. Startup time ===
 E:   0.050s  0.057s  0.052s
