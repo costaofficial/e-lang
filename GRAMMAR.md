@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2025 Costa -->
 # E — formal grammar (EBNF)
 
 > v5.0

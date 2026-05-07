@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2025 Costa -->
 # E — Language Specification
 
 > v5.0 — May 2026 (Complete language: Rust runtime, headless browser, WebView UI, built-in plugins)

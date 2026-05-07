@@ -1,3 +1,4 @@
+// Copyright (c) 2025 Costa
 // Login with retry and local fallback
 do
     with browser do

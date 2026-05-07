@@ -1,3 +1,4 @@
+// Copyright (c) 2025 Costa
 // connect.g — import last 30 activities
 time every week at 03:00 do
     with browser do

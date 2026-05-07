@@ -1,3 +1,4 @@
+// Copyright (c) 2025 Costa
 // Backup every hour
 time every hour at 00 do
     with file "backup.sql" do

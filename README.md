@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2025 Costa -->
 # E — general-purpose language
 
 **E describes *when* to do something, *on what*, and *what to do*** — the runtime handles the rest.

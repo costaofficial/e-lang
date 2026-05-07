@@ -1,3 +1,4 @@
+// Copyright (c) 2025 Costa
 // Browser demo — live Playwright test
 do
     with browser do

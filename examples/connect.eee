@@ -1,3 +1,4 @@
+// Copyright (c) 2025 Costa
 // Weekly report: export + process + notify
 time every day at 02:00 do
     // 1. Extract data

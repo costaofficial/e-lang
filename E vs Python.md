@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2025 Costa -->
 # E vs Python — Benchmark
 
 > Real tests on Ubuntu 24.04, Intel x86_64, 8GB RAM

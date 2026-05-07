@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2025 Costa -->
 # E — Roadmap & TODOs
 
 > v5.0 — May 2026
@@ -35,3 +36,4 @@ Tutte le feature core sono **complete**. E oggi è un linguaggio general-purpose
 - Self-hosting (parser di E scritto in E)
 - Redox OS port
 - REJ (Rust + E + JavaScript) come stack applicativo completo
+- Change licenza

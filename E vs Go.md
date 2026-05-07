@@ -1,3 +1,4 @@
+<!-- Copyright (c) 2025 Costa -->
 # E vs Go — Comparison
 
 > General-purpose languages: E (dynamic, Rust runtime) vs Go (static, native compiler)
