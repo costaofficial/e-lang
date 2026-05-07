@@ -22,6 +22,10 @@ struct Cli {
     #[arg(long)]
     live: bool,
 
+    /// Keep alive for scheduled tasks
+    #[arg(long)]
+    watch: bool,
+
     /// Arguments passed to the E script
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     script_args: Vec<String>,
@@ -56,11 +60,13 @@ fn main() {
         || source.starts_with(":sys") || source.starts_with(":core") || source.starts_with(":ui");
 
     let script_args = cli.script_args;
+    let watch = cli.watch;
+    let live = cli.live;
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         if has_sections {
-            run_eee(&filepath, &source, cli.live);
+            run_eee(&filepath, &source, live);
         } else {
-            run_e(&filepath, &source, cli.live, &script_args);
+            run_e(&filepath, &source, live, watch, &script_args);
         }
     }));
 
@@ -77,7 +83,7 @@ fn main() {
     }
 }
 
-fn run_e(filepath: &str, source: &str, live: bool, script_args: &[String]) {
+fn run_e(filepath: &str, source: &str, live: bool, watch: bool, script_args: &[String]) {
     let tokens = match lexer::lex(source) {
         Ok(t) => t,
         Err(e) => {
@@ -95,14 +101,14 @@ fn run_e(filepath: &str, source: &str, live: bool, script_args: &[String]) {
     println!("{}", "=".repeat(60));
 
     if live {
-        let mut driver = drivers::RealDriver::new();
+        let mut driver = drivers::RealDriver::with_watch(watch);
         let mut scope = runtime::Scope::new();
         set_args(&mut scope, script_args, filepath);
         for node in &ast {
             runtime::exec_node(node, &mut scope, &mut driver);
         }
     } else {
-        let mut driver = drivers::DryDriver::new();
+        let mut driver = drivers::DryDriver::with_watch(watch);
         let mut scope = runtime::Scope::new();
         set_args(&mut scope, script_args, filepath);
         for node in &ast {
@@ -123,6 +129,7 @@ fn set_args(scope: &mut runtime::Scope, args: &[String], script: &str) {
 }
 
 fn run_eee(filepath: &str, source: &str, live: bool) {
+    // Note: --watch for 3-tier files is handled by the core section's TimeNode
     // run_eee doesn't use script_args currently — args are only for non-3-tier scripts
     let efile = match parser::parse_eee(source) {
         Ok(f) => f,

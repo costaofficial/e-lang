@@ -394,6 +394,28 @@ pub fn exec_node(node: &Node, scope: &mut Scope, driver: &mut dyn Driver) {
             }
             driver.log(&desc);
             for a in actions { exec_node(a, scope, driver); }
+            // If --watch is set, schedule the task for repeated execution
+            if driver.should_watch() {
+                driver.log(&format!("  📅 scheduled every {} at {}",
+                    schedule.interval.as_deref().unwrap_or("?"),
+                    schedule.time.as_deref().unwrap_or("?")));
+
+                // Keep alive with a simple loop
+                let interval_secs = match schedule.interval.as_deref() {
+                    Some("minute") => 60,
+                    Some("hour") => 3600,
+                    Some("day") => 86400,
+                    Some("week") => 604800,
+                    _ => 86400, // default: daily
+                };
+                let mut iteration = 0;
+                while !driver.should_stop() {
+                    std::thread::sleep(std::time::Duration::from_secs(interval_secs));
+                    iteration += 1;
+                    driver.log(&format!("⏰ executing (iteration {})", iteration));
+                    for a in actions { exec_node(a, scope, driver); }
+                }
+            }
         }
         Node::WithNode(obj, _config, actions, _fb) => {
             match obj {

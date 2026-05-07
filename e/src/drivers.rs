@@ -11,6 +11,7 @@ pub trait Driver {
     fn ls(&mut self, pattern: &str) -> Result<Vec<String>, String>;
     fn should_stop(&self) -> bool;
     fn set_stop(&mut self, v: bool);
+    fn should_watch(&self) -> bool { false }
     fn plugin_manager(&mut self) -> Option<&mut crate::sys::PluginManager> { None }
 
     // Browser
@@ -31,11 +32,16 @@ pub trait Driver {
 
 pub struct DryDriver {
     stop: bool,
+    watch: bool,
 }
 
 impl DryDriver {
     pub fn new() -> Self {
-        DryDriver { stop: false }
+        DryDriver { stop: false, watch: false }
+    }
+
+    pub fn with_watch(watch: bool) -> Self {
+        DryDriver { stop: false, watch }
     }
 }
 
@@ -55,11 +61,13 @@ impl Driver for DryDriver {
     }
     fn should_stop(&self) -> bool { self.stop }
     fn set_stop(&mut self, v: bool) { self.stop = v; }
+    fn should_watch(&self) -> bool { self.watch }
     fn plugin_manager(&mut self) -> Option<&mut crate::sys::PluginManager> { None }
 }
 
 pub struct RealDriver {
     stop: bool,
+    watch: bool,
     browser: Option<Browser>,
     mailer: Option<Mailer>,
     pm: crate::sys::PluginManager,
@@ -69,7 +77,13 @@ impl RealDriver {
     pub fn new() -> Self {
         let mut pm = crate::sys::PluginManager::new();
         pm.register_std();
-        RealDriver { stop: false, browser: None, mailer: None, pm }
+        RealDriver { stop: false, watch: false, browser: None, mailer: None, pm }
+    }
+
+    pub fn with_watch(watch: bool) -> Self {
+        let mut pm = crate::sys::PluginManager::new();
+        pm.register_std();
+        RealDriver { stop: false, watch, browser: None, mailer: None, pm }
     }
 }
 
@@ -120,6 +134,7 @@ impl Driver for RealDriver {
 
     fn should_stop(&self) -> bool { self.stop }
     fn set_stop(&mut self, v: bool) { self.stop = v; }
+    fn should_watch(&self) -> bool { self.watch }
 
     // Browser
     fn browser_start(&mut self, download_dir: &str, _line: i64) {
