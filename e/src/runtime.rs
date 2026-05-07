@@ -677,7 +677,13 @@ fn exec_action(kind: &ActionKind, args: &[Expr], scope: &mut Scope, driver: &mut
         ActionKind::WaitDownload => {
             match driver.browser_wait_download() {
                 Ok(path) => driver.log(&format!("  ⏳ wait download... ✅ '{}'", path)),
-                Err(_) => driver.log("  ⏳ wait download... ✅"),
+                Err(e) => {
+                    if e.contains("download timeout") {
+                        driver.log(&format!("  ⏳ wait download... ⚠️ timeout (no file detected)"));
+                    } else {
+                        driver.log(&format!("  ⏳ wait download... ⚠️ {}", e));
+                    }
+                }
             }
         }
         ActionKind::WaitUntil(cond, sel) => {

@@ -19,6 +19,8 @@ impl Browser {
     fn ensure_browser(&mut self) -> Result<(), String> {
         if self.browser.is_some() { return Ok(()); }
 
+        std::fs::create_dir_all(&self.download_dir).ok();
+
         let launch_opts = LaunchOptions {
             headless: false,
             sandbox: false,
@@ -130,8 +132,32 @@ impl Browser {
     }
 
     pub fn wait_download(&mut self) -> Result<String, String> {
-        // headless_chrome doesn't have direct download support
-        Err("wait_download needs file system polling (not implemented)".into())
+        self.ensure_browser()?;
+        std::fs::create_dir_all(&self.download_dir)
+            .map_err(|e| format!("create download dir: {}", e))?;
+
+        // Poll the download directory for new files
+        // headless_chrome downloads to .crdownload while in progress, then renames
+        let max_attempts = 60; // 60 * 500ms = 30 seconds timeout
+        for _ in 0..max_attempts {
+            if let Ok(entries) = std::fs::read_dir(&self.download_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let name = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    // Skip directories, temp files (.crdownload), and hidden files
+                    if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) { continue; }
+                    if name.ends_with(".crdownload") || name.ends_with(".tmp") { continue; }
+                    if name.starts_with('.') { continue; }
+
+                    return Ok(path.to_string_lossy().to_string());
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+        Err("download timeout (30s) — no file appeared in download directory".into())
     }
 
     pub fn find_all(&mut self, selector: &str) -> Result<usize, String> {
