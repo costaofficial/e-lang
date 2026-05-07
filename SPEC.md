@@ -1,6 +1,6 @@
 # E — Language Specification
 
-> v3.1 — May 2026 (3-tier: Rust plugins + E core + JS UI)
+> v5.0 — May 2026 (Complete language: Rust runtime, headless browser, WebView UI, built-in plugins)
 
 ---
 
@@ -559,35 +559,29 @@ Driver (interface)
 
 ---
 
-## 20. Current status (v3.2)
+## 20. Current status (v5.0)
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Lexer + Parser | ✅ Complete | Full EBNF grammar |
-| Variables (`let`) | ✅ Complete | Lexical scope |
-| Functions (`fn`) | ✅ Complete | Implicit return, dynamic types |
-| Expressions | ✅ Complete | Operators, precedence, function calls |
-| Lists | ✅ Complete | `[1, 2, 3]`, indexing, `.append` |
-| Loops (`for`) | ✅ Complete | Over lists, strings, command output |
-| Modules (`import`) | ✅ Complete | Multi-file programs |
-| `time` scheduler | ✅ Complete | APScheduler |
-| `do` script blocks | ✅ Complete | Immediate execution |
+| Feature | Status | Engine |
+|---------|--------|--------|
+| Lexer + Parser | ✅ Complete | Hand-written recursive descent |
+| Variables, functions, conditions | ✅ Complete | Scope stack (Vec<HashMap>) |
+| Expressions + operators | ✅ Complete | Precedence, and/not |
+| Lists | ✅ Complete | sort, join, get, len, append |
+| String methods | ✅ Complete | split, contains, replace, trim, lower, upper |
+| Numbers | ✅ Complete | Unified f64 |
+| Loops (for, while) | ✅ Complete | Any iterable |
+| Modules (use) | ✅ Complete | Multi-file, plugin names |
+| 3-tier files (:sys :core :ui) | ✅ Complete | Plugin + E + WebView |
+| Browser automation | ✅ Complete | headless_chrome (Chrome DevTools) |
+| WebView (:ui) | ✅ Complete | wry + tao (native window) |
+| `time` scheduling + `--watch` | ✅ Complete | Threaded loop |
+| `retry` + `or` fallback | ✅ Complete | On any statement |
 | `with` context | ✅ Complete | File, browser, page |
-| `find` / `click` | ✅ Complete | Playwright |
-| `find all` / `count` | ✅ Complete | Playwright |
-| `get number` | ✅ Complete | Playwright |
-| `when` conditions | ✅ Complete | `item`, `number`, `count`, expressions |
-| `wait visible/hidden` | ✅ Complete | Playwright |
-| `retry` | ✅ Complete | With fallback |
-| `or` fallback | ✅ Complete | Local + block |
-| `write` / `create` | ✅ Complete | Filesystem |
-| `run` | ✅ Complete | Subprocess with capture |
-| `read` / `ls` | ✅ Complete | File reading, file listing |
-| `log`, `stop` | ✅ Complete | Built-in |
-| `login` | ✅ Complete | Playwright auto-detect |
-| `email` | ✅ Complete | SMTP with env vars |
-| `wait download` | ✅ Complete | Playwright download handler |
-| `watch` | ✅ Complete | Directory polling (2s interval) |
+| write / read / ls / run | ✅ Complete | std::fs, subprocess |
+| `email` | ✅ Complete | SMTP via lettre |
+| `watch` filesystem | ✅ Complete | Directory polling |
+| CLI args (`args` variable) | ✅ Complete | Trailing var arg |
+| Built-in plugins | ✅ Complete | json, fs, db, http |
 
 ---
 

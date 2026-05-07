@@ -12,55 +12,37 @@ body {
   font-size: 15px; line-height: 1.6;
 }
 .container { max-width: 680px; margin: 0 auto; padding: 32px 20px; }
-
-/* ── header ── */
 .hd { text-align: center; padding: 40px 0 24px; border-bottom: 3px solid #ccc; margin-bottom: 40px; }
 .hd-logo { font-size: 64px; font-weight: bold; letter-spacing: 8px; line-height: 1; }
 .hd-tag { font-size: 13px; color: #555; text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; }
 
-/* ── terminal ── */
-.term {
-  background: #111; color: #ddd;
-  padding: 20px; margin-bottom: 40px;
-  font-size: 13px; line-height: 1.7;
-  min-height: 180px;
-}
+.term { background: #111; color: #ddd; padding: 20px; margin-bottom: 40px; font-size: 13px; line-height: 1.7; min-height: 180px; }
 .term-hd { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
 .cursor { display: inline-block; width: 7px; height: 13px; background: #ddd; vertical-align: text-bottom; margin-left: 1px; animation: blink 1s step-end infinite; }
-.term div { white-space: pre-wrap; }
 @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+.term div { white-space: pre-wrap; }
 .tk { color: #888; font-weight: bold; }
 .tc { color: #555; font-style: italic; }
 .ts { color: #aaa; }
 
-/* ── section ── */
 .sec { margin-bottom: 40px; }
 .sec-hd { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; border-bottom: 2px solid #ccc; padding-bottom: 6px; margin-bottom: 14px; }
 .sec p { margin-bottom: 10px; }
 
-/* ── code ── */
-pre {
-  background: #111; color: #ddd;
-  padding: 16px; margin-bottom: 14px;
-  font-size: 12px; line-height: 1.5;
-  overflow-x: auto;
-}
+pre { background: #111; color: #ddd; padding: 16px; margin-bottom: 14px; font-size: 12px; line-height: 1.5; overflow-x: auto; }
 pre .c { color: #555; font-style: italic; }
 pre .k { color: #999; font-weight: bold; }
 pre .s { color: #bbb; }
 
-/* ── grid ── */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 500px) { .grid { grid-template-columns: 1fr; } }
 .g-item { border: 2px solid #ccc; padding: 14px; background: #f5f5f5; }
 .g-item h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
 .g-item p { font-size: 12px; color: #555; }
 
-/* ── btn ── */
 .btn { display: inline-block; background: #222; color: #eee; padding: 10px 24px; font-family: inherit; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; border: 2px solid #ccc; margin-right: 8px; margin-bottom: 8px; }
 .btn:hover { background: #ccc; color: #111; }
 
-/* ── footer ── */
 .ft { text-align: center; padding: 32px 0; font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px; border-top: 2px solid #ccc; margin-top: 40px; }
 .ft a { color: #111; text-decoration: none; }
 .ft a:hover { text-decoration: underline; }
@@ -73,61 +55,66 @@ pre .s { color: #bbb; }
 
   <div class="hd">
     <div class="hd-logo">E</div>
-    <div class="hd-tag">describe actions in time</div>
+    <div class="hd-tag">general-purpose language — v5.0</div>
   </div>
 
   <div class="term" id="term">
-    <div class="term-hd">⏵ e-lang/v0.4</div>
+    <div class="term-hd">⏵ e-lang/v5.0</div>
     <div id="lines"></div>
   </div>
 
   <div class="sec">
     <div class="sec-hd">What is E</div>
-    <p>E-programming is a mid-high level general-purpose language. You describe <strong>when</strong> to do something, <strong>on what</strong>, and <strong>what to do</strong>. The runtime handles the complexity.</p>
-    <p style="color:#555;font-size:13px;">Declarative. Human-readable. Event-oriented.</p>
+    <p>E is a general-purpose language. You describe <strong>when</strong> to do something, <strong>on what</strong>, and <strong>what to do</strong>. The runtime handles the complexity.</p>
+    <p style="color:#555;font-size:13px;">Declarative. Human-readable. Event-oriented. Single binary, zero dependencies.</p>
   </div>
 
   <div class="sep">◆ ◇ ◆ ◇ ◆</div>
 
   <div class="sec">
     <div class="sec-hd">Example</div>
-<pre><span class="c">// every day at 2am — export & notify</span>
-<span class="k">time</span> every day <span class="k">at</span> 02:00 <span class="k">do</span>
-    <span class="k">with</span> browser <span class="k">do</span>
-        <span class="k">open</span> <span class="s">"https://connect.api"</span>
-        <span class="k">with</span> page { timeout: 10s } <span class="k">do</span>
-            login <span class="s">"user"</span> <span class="s">"pass"</span> <span class="k">or</span> stop
-            click <span class="s">"#export-all"</span>
-            wait download
-        <span class="k">done</span>
-    <span class="k">done</span>
-<span class="k">done</span> <span class="k">or</span> log error</pre>
+<pre><span class="c">// 3-tier .eee file: plugins + logic + UI</span>
+<span class="k">:sys</span>
+use <span class="s">"http"</span>
+use <span class="s">"db"</span>
+
+<span class="k">:core</span>
+<span class="k">fn</span> salva nome <span class="k">do</span>
+    <span class="k">let</span> data = sys_call <span class="s">"http"</span> <span class="s">"e_get"</span> <span class="s">"https://api.example.com"</span>
+    sys_call <span class="s">"db"</span> <span class="s">"e_query"</span> <span class="s">"users"</span> <span class="s">"INSERT INTO data VALUES (data)"</span>
+    log <span class="s">"salvato"</span>
+<span class="k">done</span>
+
+<span class="k">:ui</span>
+&lt;h1&gt;App&lt;/h1&gt;
+&lt;script&gt;console.log('ready');&lt;/script&gt;</pre>
   </div>
 
   <div class="sec">
     <div class="sec-hd">Features</div>
     <div class="grid">
-      <div class="g-item"><h3>⏰ Time</h3><p>Schedule scripts with <code>time every day at</code> — cron-like scheduler underneath.</p></div>
-      <div class="g-item"><h3>🌐 Browser</h3><p><code>open</code>, <code>find</code>, <code>click</code>, <code>wait</code> — powered by Playwright.</p></div>
-      <div class="g-item"><h3>🔄 Retry</h3><p><code>retry N times do ... done</code> with automatic backoff.</p></div>
-      <div class="g-item"><h3>⚠️ Fallback</h3><p>Every statement can have an <code>or</code> fallback — local or global.</p></div>
-      <div class="g-item"><h3>📁 System</h3><p><code>write</code>, <code>create</code>, <code>run</code> — filesystem and shell.</p></div>
-      <div class="g-item"><h3>📧 Email</h3><p><code>email to "addr" file "x"</code> — SMTP ready.</p></div>
+      <div class="g-item"><h3>🌐 Browser</h3><p>open, find, click, login, download via headless Chrome.</p></div>
+      <div class="g-item"><h3>⏰ Scheduling</h3><p><code>time every day at 02:00 do</code> with <code>--watch</code>.</p></div>
+      <div class="g-item"><h3>🖥️ WebView</h3><p><code>:ui</code> renders HTML/JS in native window.</p></div>
+      <div class="g-item"><h3>🔌 Plugins</h3><p>json, fs, db, http built-in. More via <code>sys_call</code>.</p></div>
+      <div class="g-item"><h3>📦 Single binary</h3><p>Zero dependencies. One <code>e</code> file, everything included.</p></div>
+      <div class="g-item"><h3>📁 Scripting</h3><p>Shell commands, file I/O, variables, functions, retry.</p></div>
     </div>
   </div>
 
   <div class="sec">
-    <div class="sec-hd">Try it</div>
+    <div class="sec-hd">Quick start</div>
 <pre>$ git clone https://github.com/costaofficial/e-lang.git
 $ cd e-lang/e
-$ cargo run -- examples/hello.eee
-
-<span style="color:#555;"># build and install globally</span>
 $ cargo build --release
 $ sudo cp target/release/e /usr/local/bin/
-$ e examples/hello.e</pre>
+$ e examples/hello.eee
+
+<span style="color:#555;"># with browser, plugins, scheduling</span>
+$ e --live examples/plugins.eee
+$ e --watch --live examples/g.eee</pre>
     <a class="btn" href="https://github.com/costaofficial/e-lang" target="_blank">View on GitHub</a>
-    <a class="btn" href="https://github.com/costaofficial/e-lang/releases" target="_blank">Download v2.0</a>
+    <a class="btn" href="https://github.com/costaofficial/e-lang/releases" target="_blank">Download v5.0</a>
   </div>
 
   <div class="ft">
@@ -138,44 +125,38 @@ $ e examples/hello.e</pre>
 
 <script>
 const lines = [
-  { t:'c', v:'// every day at 2am — export & notify' },
-  { t:'',  v:'time every day at 02:00 do' },
-  { t:'',  v:'    with browser do' },
-  { t:'',  v:'        open "https://connect.g.com"' },
-  { t:'',  v:'        with page { timeout: 10s } do' },
-  { t:'',  v:'            login "user" "pass" or stop' },
-  { t:'',  v:'            click "#export-all"' },
-  { t:'',  v:'            wait download' },
-  { t:'',  v:'        done' },
-  { t:'',  v:'    done' },
-  { t:'c', v:'// any error — log and continue' },
-  { t:'',  v:'done or log error' },
+  { t:'c', v:'// 3-tier .eee file' },
+  { t:'',  v:':sys' },
+  { t:'',  v:'use "http"' },
+  { t:'',  v:'' },
+  { t:'',  v:':core' },
+  { t:'',  v:'fn salva nome do' },
+  { t:'c', v:'    // call HTTP API, save to DB' },
+  { t:'',  v:'    let data = sys_call "http" "e_get" "https://api.ex.com"' },
+  { t:'',  v:'    log "saved: " + data' },
+  { t:'',  v:'done' },
+  { t:'',  v:'' },
+  { t:'',  v:':ui' },
+  { t:'',  v:'<h1>E app</h1>' },
+  { t:'',  v:'<script>console.log("ready")</script>' },
 ];
 
-const kw = new Set('time every at do done with or retry times wait until watch login stop write email upload click find log file browser page app visible hidden download to s ms timeout'.split(' '));
-
+const kw = new Set('time every at do done with or retry times wait until watch login stop write email upload click find log file browser page app visible hidden download to s ms timeout when all get from number item count let fn run read ls for in use append while len not and sys :sys :core :ui'.split(' '));
 const box = document.getElementById('lines');
-const cur = document.createElement('span');
-cur.className = 'cursor';
+const cur = document.createElement('span'); cur.className = 'cursor';
 let li = 0, ci = 0, ln = null;
-
 function rmCur() { if (cur.parentNode) cur.parentNode.removeChild(cur); }
 function addCur() { if (ln) ln.appendChild(cur); }
 function newLn() { rmCur(); ln = document.createElement('div'); box.appendChild(ln); addCur(); }
-
 function typeChar() {
   if (li >= lines.length) return;
   const entry = lines[li];
   if (ci === 0) newLn();
-
   const ch = entry.v[ci];
   let cls = '';
   if (entry.t === 'c') cls = 'tc';
   else if (ch === '"') cls = 'ts';
-  else if (kw.has(entry.v.slice(ci).split(/[ "]/)[0]) && (ci === 0 || entry.v[ci-1] === ' ' || entry.v[ci-1] === '\t')) {
-    cls = 'tk';
-  }
-
+  else if (kw.has(entry.v.slice(ci).split(/[ "]/)[0]) && (ci === 0 || entry.v[ci-1] === ' ' || entry.v[ci-1] === '\t')) cls = 'tk';
   rmCur();
   const s = document.createElement('span');
   if (cls) s.className = cls;
@@ -183,15 +164,9 @@ function typeChar() {
   ln.appendChild(s);
   ci++;
   addCur();
-
-  if (ci >= entry.v.length) {
-    li++; ci = 0;
-    setTimeout(typeChar, 60 + Math.random() * 40);
-  } else {
-    setTimeout(typeChar, 8 + Math.random() * 14);
-  }
+  if (ci >= entry.v.length) { li++; ci = 0; setTimeout(typeChar, 60 + Math.random() * 40); }
+  else { setTimeout(typeChar, 8 + Math.random() * 14); }
 }
-
 setTimeout(typeChar, 600);
 </script>
 
