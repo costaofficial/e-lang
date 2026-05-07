@@ -1,0 +1,31 @@
+// Copyright (c) 2025 Costa
+// System health checker — monitors disk, memory, services
+
+fn check_disk _ do
+    let df = run "df --output=pcent / | tail -1 | tr -d ' %'"
+    when df > 80 do
+        run "echo 'disk alert' > /tmp/disk_alert.txt"
+        log "WARNING: disk at " + df + "%"
+    done
+    when df <= 80 do
+        log "OK: disk at " + df + "%"
+    done
+done
+
+fn check_memory _ do
+    let mem = run "free -m | awk '{print $3/$2 * 100}' | tail -1 | cut -d. -f1"
+    when mem > 90 do
+        run "echo 'memory alert' > /tmp/mem_alert.txt"
+        log "WARNING: memory at " + mem + "%"
+    done
+    when mem <= 90 do
+        log "OK: memory at " + mem + "%"
+    done
+done
+
+time every minute at 00 do
+    log "=== Health Check ==="
+    check_disk 0
+    check_memory 0
+    log "=== Done ==="
+done
