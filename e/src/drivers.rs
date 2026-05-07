@@ -11,6 +11,7 @@ pub trait Driver {
     fn ls(&mut self, pattern: &str) -> Result<Vec<String>, String>;
     fn should_stop(&self) -> bool;
     fn set_stop(&mut self, v: bool);
+    fn plugin_manager(&mut self) -> Option<&mut crate::sys::PluginManager> { None }
 
     // Browser
     fn browser_start(&mut self, _download_dir: &str, _line: i64) {}
@@ -54,21 +55,28 @@ impl Driver for DryDriver {
     }
     fn should_stop(&self) -> bool { self.stop }
     fn set_stop(&mut self, v: bool) { self.stop = v; }
+    fn plugin_manager(&mut self) -> Option<&mut crate::sys::PluginManager> { None }
 }
 
 pub struct RealDriver {
     stop: bool,
     browser: Option<Browser>,
     mailer: Option<Mailer>,
+    pm: crate::sys::PluginManager,
 }
 
 impl RealDriver {
     pub fn new() -> Self {
-        RealDriver { stop: false, browser: None, mailer: None }
+        let mut pm = crate::sys::PluginManager::new();
+        pm.register_std();
+        RealDriver { stop: false, browser: None, mailer: None, pm }
     }
 }
 
 impl Driver for RealDriver {
+    fn plugin_manager(&mut self) -> Option<&mut crate::sys::PluginManager> {
+        Some(&mut self.pm)
+    }
     fn log(&mut self, msg: &str) {
         println!("  {}", msg);
     }

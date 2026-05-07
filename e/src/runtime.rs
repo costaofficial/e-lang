@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use crate::ast::*;
 use crate::drivers::Driver;
-use crate::sys::PluginManager;
 use once_cell::sync::Lazy;
 use std::fmt;
 
@@ -24,27 +23,41 @@ impl RuntimeError {
     }
 }
 
-// Thread-safe plugin manager. Each thread gets its own via PluginManager::new().
-// The global instance is used by the CLI; library users should create their own.
-pub static PLUGIN_MANAGER: once_cell::sync::Lazy<Mutex<PluginManager>> =
-    once_cell::sync::Lazy::new(|| Mutex::new(PluginManager::new()));
+// NOTE: PluginManager is now owned by RealDriver and accessed via driver.plugin_manager()
+// No more global statics. Each driver instance has its own plugin manager.
 
 pub struct Scope {
-    vars: HashMap<String, Value>,
+    vars: Vec<HashMap<String, Value>>,
     fns: HashMap<String, FnInfo>,
 }
 
 impl Scope {
     pub fn new() -> Self {
-        Scope { vars: HashMap::new(), fns: HashMap::new() }
+        Scope { vars: vec![HashMap::new()], fns: HashMap::new() }
+    }
+
+    pub fn push_scope(&mut self) {
+        self.vars.push(HashMap::new());
+    }
+
+    pub fn pop_scope(&mut self) {
+        self.vars.pop();
     }
 
     pub fn get_var(&self, name: &str) -> Option<Value> {
-        self.vars.get(name).cloned()
+        for scope in self.vars.iter().rev() {
+            if let Some(v) = scope.get(name) {
+                return Some(v.clone());
+            }
+        }
+        None
     }
 
     pub fn def_var(&mut self, name: &str, val: Value) {
-        self.vars.insert(name.to_string(), val);
+        // Add to the current (topmost) scope
+        if let Some(current) = self.vars.last_mut() {
+            current.insert(name.to_string(), val);
+        }
     }
 
     pub fn def_fn(&mut self, name: &str, params: Vec<String>, body: Vec<Node>) {
@@ -53,14 +66,6 @@ impl Scope {
 
     pub fn get_fn(&self, name: &str) -> Option<&FnInfo> {
         self.fns.get(name)
-    }
-
-    pub fn inherit(parent: &Scope) -> Scope {
-        // Create a child scope that copies parent's vars and fns
-        // This allows functions to see outer variables
-        let mut s = Scope { vars: parent.vars.clone(), fns: HashMap::new() };
-        s.fns.extend(parent.fns.clone());
-        s
     }
 }
 
@@ -119,9 +124,11 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
                     .map(|s| s.trim_start_matches("lib").trim_end_matches(".eso").to_string())
                     .unwrap_or_else(|| plugin.clone());
 
-                let pm = PLUGIN_MANAGER.lock().unwrap();
-                let result = pm.call(&resolved, &format!("{}", func), &args_str)
-                    .or_else(|_| pm.call(&plugin, &format!("{}", func), &args_str));
+                let result = match driver.plugin_manager() {
+                    Some(pm) => pm.call(&resolved, &format!("{}", func), &args_str)
+                        .or_else(|_| pm.call(&plugin, &format!("{}", func), &args_str)),
+                    None => Err("plugin system not available in dry-run mode".to_string()),
+                };
                 return match result {
                     Ok(r) => Value::Str(r),
                     Err(e) => panic!("{}", e),
@@ -138,25 +145,23 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
             if args.len() != params.len() {
                 panic!("function '{}' expects {} args, got {}", name, params.len(), args.len());
             }
-            let mut child_scope = Scope::inherit(scope);
+            scope.push_scope();
             for (param, arg) in params.iter().zip(args.iter()) {
                 let val = eval_expr(arg, scope, driver);
-                child_scope.def_var(param, val);
+                scope.def_var(param, val);
             }
             let mut result = Value::Null;
             for node in &body {
-                exec_node(node, &mut child_scope, driver);
-                // Track the last expression value for return
                 match node {
-                    Node::ExprNode(e) => { result = eval_expr(e, &mut child_scope, driver); }
-                    Node::Action(ActionKind::Log, args) => {
-                        if let Some(e) = args.first() {
-                            result = eval_expr(e, &mut child_scope, driver);
-                        }
+                    Node::ExprNode(e) => {
+                        result = eval_expr(e, scope, driver);
                     }
-                    _ => {}
+                    _ => {
+                        exec_node(node, scope, driver);
+                    }
                 }
             }
+            scope.pop_scope();
             result
         }
         Expr::Bin(left, op, right) => {
