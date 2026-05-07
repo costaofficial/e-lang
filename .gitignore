@@ -1,8 +1,5 @@
-/e/target/
 __pycache__/
 *.pyc
 .DS_Store
 *.swp
 *.swo
-packages/target/
-packages/target/

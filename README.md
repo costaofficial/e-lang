@@ -5,15 +5,12 @@
 ## Quick start
 
 ```bash
-git clone https://github.com/costaofficial/e-lang.git
-cd e-lang/e
-cargo build --release
-sudo cp target/release/e /usr/local/bin/
+# Download the latest binary
+curl -L https://github.com/costaofficial/e-lang/releases/latest/download/e -o e
+chmod +x ./e
 
-# run
-e examples/hello.eee
-e --live examples/hello.eee
-e --watch --live examples/g.eee
+# Run an example
+./e examples/hello.eee
 ```
 
 ## Features
@@ -23,7 +20,6 @@ e --watch --live examples/g.eee
 - **Scheduling** — `time every day at 02:00 do` with `--watch` flag
 - **WebView UI** — `:ui` section renders HTML/JS in native window
 - **Built-in plugins** — json, fs, db, http as first-class modules
-- **Plugin system** — Rust `.so` modules callable from E
 - **Single binary** — zero dependencies, no runtime required
 
 ## Example
@@ -48,10 +44,10 @@ done
 ## CLI
 
 ```bash
-e script.eee                   # dry-run (show what would happen)
-e --live script.eee            # live execution
-e --watch --live script.eee   # keep alive for scheduled tasks
-e script.eee arg1 arg2         # pass arguments (available as args variable)
+./e script.eee                   # dry-run
+./e --live script.eee            # live execution
+./e --watch --live script.eee    # keep alive for scheduled tasks
+./e script.eee arg1 arg2         # pass arguments (args variable)
 ```
 
 ## Examples
@@ -59,7 +55,6 @@ e script.eee arg1 arg2         # pass arguments (available as args variable)
 | File | What it does |
 |------|-------------|
 | `examples/hello.eee` | Browser: open, find, click, log |
-| `examples/bash_demo.eee` | Shell commands, variables, conditions |
 | `examples/core.eee` | Language core tests |
 | `examples/plugins.eee` | Standard library (json, fs, db, http) |
 | `examples/login.eee` | Retry with fallback |
@@ -71,12 +66,16 @@ e script.eee arg1 arg2         # pass arguments (available as args variable)
 
 - [GRAMMAR.md](GRAMMAR.md) — formal grammar (EBNF)
 - [SPEC.md](SPEC.md) — full language specification
-- [TODOs.md](TODOs.md) — roadmap and pending items
 
-## Status
+## Download
 
-**v5.0** — Rust binary. Complete browser, WebView, plugins, scheduling.
-Single binary, no dependencies.
+Get the latest binary from the [Releases](https://github.com/costaofficial/e-lang/releases) page.
+
+```bash
+curl -L https://github.com/costaofficial/e-lang/releases/latest/download/e -o e
+chmod +x ./e
+./e examples/hello.eee
+```
 
 ## License
 

@@ -104,15 +104,13 @@ use <span class="s">"db"</span>
 
   <div class="sec">
     <div class="sec-hd">Quick start</div>
-<pre>$ git clone https://github.com/costaofficial/e-lang.git
-$ cd e-lang/e
-$ cargo build --release
-$ sudo cp target/release/e /usr/local/bin/
-$ e examples/hello.eee
+<pre>curl -L https://github.com/costaofficial/e-lang/releases/latest/download/e -o e
+chmod +x ./e
+./e examples/hello.eee
 
 <span style="color:#555;"># with browser, plugins, scheduling</span>
-$ e --live examples/plugins.eee
-$ e --watch --live examples/g.eee</pre>
+./e --live examples/plugins.eee
+./e --watch --live examples/g.eee</pre>
     <a class="btn" href="https://github.com/costaofficial/e-lang" target="_blank">View on GitHub</a>
     <a class="btn" href="https://github.com/costaofficial/e-lang/releases" target="_blank">Download v5.0</a>
   </div>

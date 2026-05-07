@@ -615,14 +615,10 @@ fetch('/api/users').then(r => r.json()).then(d => console.log(d));
 ## 22. CLI usage
 
 ```bash
-# Build from source
-cd e/
-cargo build --release
-./target/release/e examples/hello.eee
-
-# Or install globally
-sudo cp target/release/e /usr/local/bin/
-e examples/hello.eee
+# Download the binary
+curl -L https://github.com/costaofficial/e-lang/releases/latest/download/e -o e
+chmod +x ./e
+./e examples/hello.eee
 ```
 
 No dependencies required. Single binary.
