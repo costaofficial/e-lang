@@ -228,12 +228,98 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
         }
         Expr::Method(obj, method, args) => {
             let mut o = eval_expr(obj, scope, driver);
-            if method == "append" {
-                if let Value::List(ref mut lst) = o {
-                    if let Some(arg) = args.first() { lst.push(eval_expr(arg, scope, driver)); }
+            match method.as_str() {
+                // List methods
+                "append" => {
+                    if let Value::List(ref mut lst) = o {
+                        if let Some(arg) = args.first() { lst.push(eval_expr(arg, scope, driver)); }
+                    }
+                    o
                 }
-                o
-            } else { panic!("unknown method '{}'", method); }
+                "sort" => {
+                    if let Value::List(ref mut lst) = o {
+                        lst.sort_by(|a, b| {
+                            let sa = format!("{}", a);
+                            let sb = format!("{}", b);
+                            sa.cmp(&sb)
+                        });
+                    }
+                    o
+                }
+                "join" => {
+                    if let Value::List(ref lst) = o {
+                        let sep = if let Some(arg) = args.first() {
+                            match eval_expr(arg, scope, driver) {
+                                Value::Str(s) => s,
+                                _ => "".to_string(),
+                            }
+                        } else { ", ".to_string() };
+                        Value::Str(lst.iter().map(|v| format!("{}", v)).collect::<Vec<_>>().join(&sep))
+                    } else { o }
+                }
+                "get" => {
+                    if let Some(arg) = args.first() {
+                        let idx = to_f64(&eval_expr(arg, scope, driver)) as usize;
+                        match o {
+                            Value::List(ref lst) => lst.get(idx).cloned().unwrap_or(Value::Null),
+                            Value::Str(ref s) => s.chars().nth(idx).map(|c| Value::Str(c.to_string())).unwrap_or(Value::Null),
+                            _ => Value::Null,
+                        }
+                    } else { Value::Null }
+                }
+                "len" => {
+                    match o {
+                        Value::List(ref lst) => Value::Num(lst.len() as f64),
+                        Value::Str(ref s) => Value::Num(s.len() as f64),
+                        _ => Value::Num(0.0),
+                    }
+                }
+                // String methods
+                "split" => {
+                    let sep = if let Some(arg) = args.first() {
+                        match eval_expr(arg, scope, driver) {
+                            Value::Str(s) => s,
+                            _ => " ".to_string(),
+                        }
+                    } else { " ".to_string() };
+                    if let Value::Str(ref s) = o {
+                        Value::List(s.split(&sep).map(|p| Value::Str(p.to_string())).collect())
+                    } else { o }
+                }
+                "contains" => {
+                    if let Some(arg) = args.first() {
+                        let substr = format!("{}", eval_expr(arg, scope, driver));
+                        if let Value::Str(ref s) = o {
+                            Value::Bool(s.contains(&substr))
+                        } else { Value::Bool(false) }
+                    } else { Value::Bool(false) }
+                }
+                "replace" => {
+                    if let (Some(a1), Some(a2)) = (args.first(), args.get(1)) {
+                        let from = format!("{}", eval_expr(a1, scope, driver));
+                        let to = format!("{}", eval_expr(a2, scope, driver));
+                        if let Value::Str(ref s) = o {
+                            Value::Str(s.replace(&from, &to))
+                        } else { o }
+                    } else { o }
+                }
+                "trim" => {
+                    if let Value::Str(ref s) = o {
+                        Value::Str(s.trim().to_string())
+                    } else { o }
+                }
+                "lower" => {
+                    if let Value::Str(ref s) = o {
+                        Value::Str(s.to_lowercase())
+                    } else { o }
+                }
+                "upper" => {
+                    if let Value::Str(ref s) = o {
+                        Value::Str(s.to_uppercase())
+                    } else { o }
+                }
+                _ => panic!("unknown method '{}'", method),
+            }
         }
         Expr::Len(val) => {
             let v = eval_expr(val, scope, driver);

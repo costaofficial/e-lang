@@ -593,14 +593,22 @@ impl Parser {
                 let m = match &t.kind {
                     TokenKind::Ident(s) => s.clone(),
                     _ => {
-                        // Accept keywords as method names
                         let name = token_name(&t.kind);
                         if name.is_empty() { panic!("expected method name") }
                         name
                     }
                 };
                 let mut a = Vec::new();
-                if is_expr_start(&self.peek().kind) { a.push(self.parse_expr()); }
+                if is_expr_start(&self.peek().kind) {
+                    a.push(self.parse_expr());
+                    let mut max_args = 10;
+                    while max_args > 0 && is_expr_start(&self.peek().kind) {
+                        if matches!(self.peek().kind, TokenKind::Do | TokenKind::Done | TokenKind::Newline | TokenKind::Eof | TokenKind::Or | TokenKind::RBracket | TokenKind::Comma | TokenKind::And) { break; }
+                        if matches!(self.peek().kind, TokenKind::Op(ref o) if matches!(o.as_str(), "+" | "-" | "*" | "/" | ">" | "<" | "=" | "==" | "!=" | ">=" | "<=" | ")" | "]" | "." | ",")) { break; }
+                        a.push(self.parse_expr());
+                        max_args -= 1;
+                    }
+                }
                 cur = Expr::Method(Box::new(cur), m, a);
             } else { break; }
         }

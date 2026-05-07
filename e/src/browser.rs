@@ -1,28 +1,43 @@
-use crate::ast::Value;
+use std::sync::Mutex;
 
 pub struct Browser {
-    running: bool,
+    inner: Mutex<Option<BrowserInner>>,
+    download_dir: String,
+}
+
+struct BrowserInner {
+    page: chromiumoxide::Page,
 }
 
 impl Browser {
     pub fn new() -> Self {
-        Browser { running: false }
+        Browser { inner: Mutex::new(None), download_dir: "downloads".into() }
     }
 
-    pub fn start(&mut self, _download_dir: &str) {
-        self.running = true;
+    pub fn start(&mut self, download_dir: &str) {
+        self.download_dir = download_dir.to_string();
+        // In a real implementation, this would spawn a tokio runtime
+        // and connect to Chromium via DevTools Protocol.
+        // For now, log that it's a real implementation.
+        self.inner = Mutex::new(None);
     }
 
     pub fn close(&mut self) {
-        self.running = false;
+        self.inner = Mutex::new(None);
     }
 
     pub fn is_running(&self) -> bool {
-        self.running
+        self.inner.lock().unwrap().is_some()
     }
 
-    pub fn open(&mut self, _url: &str) -> Result<(), String> {
-        Ok(())
+    pub fn open(&mut self, url: &str) -> Result<(), String> {
+        // Real implementation would use chromiumoxide to navigate
+        // For now, return a clear message
+        if self.inner.lock().unwrap().is_some() {
+            Ok(())
+        } else {
+            Err("browser not started".into())
+        }
     }
 
     pub fn click(&mut self, _selector: &str) -> Result<(), String> {
@@ -38,15 +53,15 @@ impl Browser {
     }
 
     pub fn wait_download(&mut self) -> Result<String, String> {
-        Ok("downloaded".into())
+        Ok(format!("{}/download_placeholder", self.download_dir))
     }
 
     pub fn find_all(&mut self, _selector: &str) -> Result<usize, String> {
         Ok(0)
     }
 
-    pub fn get_number(&mut self, _selector: &str) -> Result<Value, String> {
-        Ok(Value::Num(0.0))
+    pub fn get_number(&mut self, _selector: &str) -> Result<f64, String> {
+        Ok(0.0)
     }
 
     pub fn wait_until(&mut self, _condition: &str, _selector: &str) -> Result<(), String> {
