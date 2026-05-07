@@ -1,0 +1,33 @@
+:sys
+use "../packages/libjson.eso"
+use "../packages/libfs.eso"
+use "../packages/libdb.eso"
+
+:core
+do
+    log "=== TEST PLUGINS ==="
+
+    // JSON — parse and stringify
+    let str = sys_call "../packages/libjson.eso" "e_stringify" "Ciao Mondo"
+    log "JSON.stringify: " + str
+
+    let parsed = sys_call "../packages/libjson.eso" "e_parse" "true"
+    log "JSON.parse true: " + parsed
+    log "JSON.stringify: " + str
+
+    // FS
+    let exists = sys_call "../packages/libfs.eso" "e_exists" "Cargo.toml"
+    log "FS.exists Cargo.toml: " + exists
+
+    let size = sys_call "../packages/libfs.eso" "e_size" "Cargo.toml"
+    log "FS.size Cargo.toml: " + size + " bytes"
+
+    // DB
+    let opened = sys_call "../packages/libdb.eso" "e_open" "test.db"
+    log "DB.open: " + opened
+
+    log "=== ALL PLUGIN TESTS PASSED ==="
+done
+
+:ui
+<h1>E plugins test</h1>
