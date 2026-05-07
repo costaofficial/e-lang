@@ -512,7 +512,7 @@ impl Parser {
 
     fn parse_unary(&mut self) -> Expr {
         if matches!(self.peek().kind, TokenKind::Op(ref s) if s == "-") {
-            self.pop(); return Expr::Bin(Box::new(Expr::Num(-1)), Op::Mul, Box::new(self.parse_unary()));
+            self.pop(); return Expr::Bin(Box::new(Expr::Num(-1.0)), Op::Mul, Box::new(self.parse_unary()));
         }
         if matches!(self.peek().kind, TokenKind::Not) {
             self.pop(); return Expr::Not(Box::new(self.parse_unary()));
@@ -523,8 +523,8 @@ impl Parser {
     fn parse_factor(&mut self) -> Expr {
         let k = self.peek().kind.clone();
         let result: Expr = match k {
-            TokenKind::Number(n) => { self.pop(); Expr::Num(n) }
-            TokenKind::Float(f) => { self.pop(); Expr::Float(f) }
+            TokenKind::Number(n) => { self.pop(); Expr::Num(n as f64) }
+            TokenKind::Float(f) => { self.pop(); Expr::Num(f) }
             TokenKind::String(s) => { self.pop(); Expr::Str(s) }
             TokenKind::Run => {
                 self.pop(); let cmd = match self.pop().kind { TokenKind::String(s) => s, _ => panic!("expected string") };

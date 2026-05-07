@@ -74,8 +74,7 @@ impl Value {
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::Bool(b) => *b,
-            Value::Num(n) => *n != 0,
-            Value::Float(f) => *f != 0.0,
+            Value::Num(n) => *n != 0.0,
             Value::Str(s) => !s.is_empty(),
             Value::List(l) => !l.is_empty(),
             Value::Null => false,
@@ -86,23 +85,31 @@ impl Value {
 pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Value {
     match expr {
         Expr::Num(n) => Value::Num(*n),
-        Expr::Float(f) => Value::Float(*f),
         Expr::Str(s) => Value::Str(s.clone()),
         Expr::Var(name) => {
             scope.get_var(name).unwrap_or_else(|| panic!("variable '{}' not defined", name))
         }
         Expr::Call(name, args) => {
-            // Plugin call: sys_call "plugin" "func" "args"
+            // Plugin call: sys_call "plugin" "func" ["arg1"] ["arg2"]
             if name == "sys_call" {
                 if args.len() < 2 {
                     panic!("sys_call needs at least 2 arguments: plugin, function");
                 }
                 let plugin_val = eval_expr(&args[0], scope, driver);
                 let func = eval_expr(&args[1], scope, driver);
-                let args_str = if args.len() > 2 {
+                let arg1 = if args.len() > 2 {
                     let a = eval_expr(&args[2], scope, driver);
                     format!("{}", a)
                 } else { String::new() };
+                let arg2 = if args.len() > 3 {
+                    let a = eval_expr(&args[3], scope, driver);
+                    format!("{}", a)
+                } else { String::new() };
+
+                // Join arg1 and arg2 with a separator if both present
+                let args_str = if arg1.is_empty() { arg2 }
+                    else if arg2.is_empty() { arg1 }
+                    else { format!("{}|{}", arg1, arg2) };
 
                 // Resolve plugin path to built-in name
                 let plugin = format!("{}", plugin_val);
@@ -158,29 +165,13 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
             match op {
                 Op::Add => match (&l, &r) {
                     (Value::Str(a), _) => Value::Str(format!("{}{}", a, r)),
-                    _ => Value::Float(to_f64(&l) + to_f64(&r)),
+                    _ => Value::Num(to_f64(&l) + to_f64(&r)),
                 },
                 Op::Sub => bin_num(l, r, |a, b| a - b),
                 Op::Mul => bin_num(l, r, |a, b| a * b),
                 Op::Div => bin_num(l, r, |a, b| a / b),
-                Op::Eq => Value::Bool({
-                    match (&l, &r) {
-                        (Value::Num(a), Value::Num(b)) => a == b,
-                        (Value::Float(a), Value::Float(b)) => (a - b).abs() < 0.0001,
-                        (Value::Num(a), Value::Float(b)) => (*a as f64 - b).abs() < 0.0001,
-                        (Value::Float(a), Value::Num(b)) => (a - *b as f64).abs() < 0.0001,
-                        _ => l == r,
-                    }
-                }),
-                Op::Neq => Value::Bool({
-                    match (&l, &r) {
-                        (Value::Num(a), Value::Num(b)) => a != b,
-                        (Value::Float(a), Value::Float(b)) => (a - b).abs() >= 0.0001,
-                        (Value::Num(a), Value::Float(b)) => (*a as f64 - b).abs() >= 0.0001,
-                        (Value::Float(a), Value::Num(b)) => (a - *b as f64).abs() >= 0.0001,
-                        _ => l != r,
-                    }
-                }),
+                Op::Eq => Value::Bool(l == r),
+                Op::Neq => Value::Bool(l != r),
                 Op::Gt => bin_bool(l, r, |a, b| a > b),
                 Op::Lt => bin_bool(l, r, |a, b| a < b),
                 Op::Gte => bin_bool(l, r, |a, b| a >= b),
@@ -242,8 +233,8 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
         Expr::Len(val) => {
             let v = eval_expr(val, scope, driver);
             match v {
-                Value::Str(s) => Value::Num(s.len() as i64),
-                Value::List(l) => Value::Num(l.len() as i64),
+                Value::Str(s) => Value::Num(s.len() as f64),
+                Value::List(l) => Value::Num(l.len() as f64),
                 _ => panic!("len: expected string or list"),
             }
         }
@@ -253,8 +244,7 @@ pub fn eval_expr(expr: &Expr, scope: &mut Scope, driver: &mut dyn Driver) -> Val
 
 fn to_f64(v: &Value) -> f64 {
     match v {
-        Value::Num(n) => *n as f64,
-        Value::Float(f) => *f,
+        Value::Num(n) => *n,
         _ => 0.0,
     }
 }
@@ -262,7 +252,7 @@ fn to_f64(v: &Value) -> f64 {
 fn bin_num(l: Value, r: Value, f: fn(f64, f64) -> f64) -> Value {
     let a = to_f64(&l);
     let b = to_f64(&r);
-    Value::Float(f(a, b))
+    Value::Num(f(a, b))
 }
 
 fn bin_bool(l: Value, r: Value, f: fn(f64, f64) -> bool) -> Value {

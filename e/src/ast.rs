@@ -1,7 +1,6 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
-    Num(i64),
-    Float(f64),
+    Num(f64),
     Str(String),
     List(Vec<Value>),
     Bool(bool),
@@ -11,8 +10,13 @@ pub enum Value {
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Num(n) => write!(f, "{}", n),
-            Value::Float(n) => write!(f, "{}", n),
+            Value::Num(n) => {
+                if *n == n.trunc() && n.is_finite() {
+                    write!(f, "{}", *n as i64)
+                } else {
+                    write!(f, "{}", n)
+                }
+            }
             Value::Str(s) => write!(f, "{}", s),
             Value::List(l) => {
                 let items: Vec<String> = l.iter().map(|v| format!("{}", v)).collect();
@@ -40,8 +44,7 @@ pub enum Condition {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Num(i64),
-    Float(f64),
+    Num(f64),
     Str(String),
     Var(String),
     Call(String, Vec<Expr>),

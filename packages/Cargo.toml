@@ -1,7 +1,0 @@
-[workspace]
-resolver = "2"
-members = ["json", "db", "fs", "http"]
-
-[workspace.package]
-version = "1.0.0"
-edition = "2021"

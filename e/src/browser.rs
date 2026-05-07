@@ -46,7 +46,7 @@ impl Browser {
     }
 
     pub fn get_number(&mut self, _selector: &str) -> Result<Value, String> {
-        Ok(Value::Num(0))
+        Ok(Value::Num(0.0))
     }
 
     pub fn wait_until(&mut self, _condition: &str, _selector: &str) -> Result<(), String> {

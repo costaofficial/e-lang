@@ -106,13 +106,78 @@ fn sys_fs_delete(path: &str) -> String {
     }
 }
 
-// DB plugin (in-memory + file-backed JSON)
+// DB plugin (file-backed JSON)
 use std::sync::Mutex;
-static DB: once_cell::sync::Lazy<Mutex<HashMap<String, Vec<HashMap<String, String>>>>> =
-    once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
+use std::path::Path;
 
-fn sys_db_open(_path: &str) -> String {
+static DB_FILE: &str = "e_data.json";
+static DB: once_cell::sync::Lazy<Mutex<HashMap<String, Vec<HashMap<String, String>>>>> =
+    once_cell::sync::Lazy::new(|| {
+        let data = std::fs::read_to_string(DB_FILE)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        Mutex::new(data)
+    });
+
+fn save_db() {
+    let db = DB.lock().unwrap();
+    if let Ok(json) = serde_json::to_string(&*db) {
+        let _ = std::fs::write(DB_FILE, &json);
+    }
+}
+
+fn sys_db_open(path: &str) -> String {
+    if !path.is_empty() {
+        // Load custom database file
+        let data = std::fs::read_to_string(path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        let mut db = DB.lock().unwrap();
+        *db = data;
+    }
     "{\"ok\": true}".to_string()
+}
+
+fn sys_db_query(input: &str) -> String {
+    let parts: Vec<&str> = input.splitn(2, '|').collect();
+    let _table = parts.get(0).unwrap_or(&"");
+    let sql = parts.get(1).unwrap_or(&"");
+    let sql_upper = sql.trim().to_uppercase();
+    let result;
+
+    {
+        let mut db = DB.lock().unwrap();
+
+        if sql_upper.starts_with("CREATE") {
+            let table_name = sql.split_whitespace().nth(2).unwrap_or("table");
+            db.entry(table_name.to_string()).or_insert_with(Vec::new);
+            result = format!("{{\"ok\": true, \"table\": \"{}\"}}", table_name);
+        } else if sql_upper.starts_with("INSERT") {
+            let table_name = sql.split_whitespace().nth(2).unwrap_or("table");
+            let rows = db.entry(table_name.to_string()).or_insert_with(Vec::new);
+            if let Some(values_start) = sql.find("VALUES") {
+                let values_str = &sql[values_start + 6..].trim().trim_matches(&['(', ')'][..]);
+                let mut row = HashMap::new();
+                for (i, val) in values_str.split(',').enumerate() {
+                    let v = val.trim().trim_matches('\'');
+                    row.insert(format!("col{}", i), v.to_string());
+                }
+                rows.push(row);
+            }
+            result = format!("{{\"ok\": true, \"table\": \"{}\"}}", table_name);
+        } else if sql_upper.starts_with("SELECT") {
+            let table_name = sql.split_whitespace().nth(3).unwrap_or("table");
+            let rows = db.get(table_name).cloned().unwrap_or_default();
+            result = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
+        } else {
+            result = "null".to_string();
+        }
+    }
+
+    save_db();
+    result
 }
 
 // HTTP plugin
@@ -138,35 +203,4 @@ fn sys_http_post(args: &str) -> String {
     }
 }
 
-fn sys_db_query(input: &str) -> String {
-    let parts: Vec<&str> = input.splitn(2, '|').collect();
-    let _table = parts.get(0).unwrap_or(&"");
-    let sql = parts.get(1).unwrap_or(&"");
-    let sql_upper = sql.trim().to_uppercase();
-    let mut db = DB.lock().unwrap();
 
-    if sql_upper.starts_with("CREATE") {
-        let table_name = sql.split_whitespace().nth(2).unwrap_or("table");
-        db.entry(table_name.to_string()).or_insert_with(Vec::new);
-        format!("{{\"ok\": true, \"table\": \"{}\"}}", table_name)
-    } else if sql_upper.starts_with("INSERT") {
-        let table_name = sql.split_whitespace().nth(2).unwrap_or("table");
-        let rows = db.entry(table_name.to_string()).or_insert_with(Vec::new);
-        if let Some(values_start) = sql.find("VALUES") {
-            let values_str = &sql[values_start + 6..].trim().trim_matches(&['(', ')'][..]);
-            let mut row = HashMap::new();
-            for (i, val) in values_str.split(',').enumerate() {
-                let v = val.trim().trim_matches('\'');
-                row.insert(format!("col{}", i), v.to_string());
-            }
-            rows.push(row);
-        }
-        format!("{{\"ok\": true, \"table\": \"{}\"}}", table_name)
-    } else if sql_upper.starts_with("SELECT") {
-        let table_name = sql.split_whitespace().nth(3).unwrap_or("table");
-        let rows = db.get(table_name).cloned().unwrap_or_default();
-        serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into())
-    } else {
-        "null".to_string()
-    }
-}
