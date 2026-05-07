@@ -13,7 +13,7 @@ use std::fs;
 use std::path::PathBuf;
 
 #[derive(ClapParser)]
-#[command(name = "e", version = "3.1.0", about = "E — general-purpose language")]
+#[command(name = "e", version = "5.0.0", about = "E — general-purpose language")]
 struct Cli {
     /// Script file to run
     file: PathBuf,
