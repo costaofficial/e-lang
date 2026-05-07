@@ -578,33 +578,35 @@ fn exec_action(kind: &ActionKind, args: &[Expr], scope: &mut Scope, driver: &mut
         }
         ActionKind::Open => {
             if let Some(Expr::Str(url)) = args.first() {
-                let result = driver.browser_open(url);
-                if result.is_ok() {
-                    driver.log(&format!("  🌐 opened '{}'", url));
-                } else {
-                    driver.log(&format!("  🌐 open '{}' (simulated)", url));
+                match driver.browser_open(url) {
+                    Ok(_) => driver.log(&format!("  🌐 opened '{}'", url)),
+                    Err(e) => driver.log(&format!("  ⚠️ open '{}': {}", url, e)),
                 }
             }
         }
         ActionKind::Click => {
             if let Some(Expr::Str(sel)) = args.first() {
-                driver.browser_click(sel).ok();
-                driver.log(&format!("  🖱️ clicked '{}'", sel));
+                match driver.browser_click(sel) {
+                    Ok(_) => driver.log(&format!("  🖱️ clicked '{}'", sel)),
+                    Err(e) => driver.log(&format!("  ⚠️ click '{}': {}", sel, e)),
+                }
             } else {
-                driver.log("  🖱️ click");
+                driver.log("  🖱️ click (no selector)");
             }
         }
         ActionKind::Find => {
             if let Some(Expr::Str(sel)) = args.first() {
-                driver.browser_find(sel).ok();
-                driver.log(&format!("  🔍 found '{}'", sel));
+                match driver.browser_find(sel) {
+                    Ok(_) => driver.log(&format!("  🔍 found '{}'", sel)),
+                    Err(e) => driver.log(&format!("  ⚠️ find '{}': {}", sel, e)),
+                }
             }
         }
         ActionKind::FindAll => {
             if let Some(Expr::Str(sel)) = args.first() {
                 match driver.browser_find_all(sel) {
                     Ok(n) => driver.log(&format!("  🔍 find all '{}' → {} elements", sel, n)),
-                    Err(_) => driver.log(&format!("  🔍 find all '{}' (simulated)", sel)),
+                    Err(e) => driver.log(&format!("  ⚠️ find all '{}': {}", sel, e)),
                 }
             }
         }

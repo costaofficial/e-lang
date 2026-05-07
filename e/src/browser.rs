@@ -1,70 +1,76 @@
-use std::sync::Mutex;
+use std::process::Command;
 
 pub struct Browser {
-    inner: Mutex<Option<BrowserInner>>,
-    download_dir: String,
-}
-
-struct BrowserInner {
-    page: chromiumoxide::Page,
+    running: bool,
+    page_connected: bool,
+    _phantom: (),
 }
 
 impl Browser {
     pub fn new() -> Self {
-        Browser { inner: Mutex::new(None), download_dir: "downloads".into() }
+        Browser { running: false, page_connected: false, _phantom: () }
     }
 
-    pub fn start(&mut self, download_dir: &str) {
-        self.download_dir = download_dir.to_string();
-        // In a real implementation, this would spawn a tokio runtime
-        // and connect to Chromium via DevTools Protocol.
-        // For now, log that it's a real implementation.
-        self.inner = Mutex::new(None);
+    pub fn start(&mut self, _download_dir: &str) {
+        self.running = true;
     }
 
     pub fn close(&mut self) {
-        self.inner = Mutex::new(None);
+        self.running = false;
+        self.page_connected = false;
     }
 
     pub fn is_running(&self) -> bool {
-        self.inner.lock().unwrap().is_some()
+        self.running
     }
 
     pub fn open(&mut self, url: &str) -> Result<(), String> {
-        // Real implementation would use chromiumoxide to navigate
-        // For now, return a clear message
-        if self.inner.lock().unwrap().is_some() {
-            Ok(())
-        } else {
-            Err("browser not started".into())
+        let browsers = ["google-chrome", "google-chrome-stable", "chromium-browser", "chromium"];
+        let mut launched = false;
+        for browser in &browsers {
+            if let Ok(_) = Command::new(browser).arg("--new-window").arg(url).spawn() {
+                self.running = true;
+                self.page_connected = true;
+                launched = true;
+                break;
+            }
         }
+        if !launched {
+            if let Ok(_) = Command::new("xdg-open").arg(url).spawn() {
+                self.running = true;
+                self.page_connected = true;
+                launched = true;
+            }
+        }
+        if launched { Ok(()) }
+        else { Err("no browser found (tried: google-chrome, chromium-browser, xdg-open)".into()) }
     }
 
     pub fn click(&mut self, _selector: &str) -> Result<(), String> {
-        Ok(())
+        Err("click needs chromiumoxide".into())
     }
 
     pub fn find(&mut self, _selector: &str) -> Result<(), String> {
-        Ok(())
+        Err("find needs chromiumoxide".into())
     }
 
     pub fn login(&mut self, _user: &str, _pass: &str) -> Result<(), String> {
-        Ok(())
+        Err("login needs chromiumoxide".into())
     }
 
     pub fn wait_download(&mut self) -> Result<String, String> {
-        Ok(format!("{}/download_placeholder", self.download_dir))
+        Err("wait download needs chromiumoxide".into())
     }
 
     pub fn find_all(&mut self, _selector: &str) -> Result<usize, String> {
-        Ok(0)
+        Err("find all needs chromiumoxide".into())
     }
 
     pub fn get_number(&mut self, _selector: &str) -> Result<f64, String> {
-        Ok(0.0)
+        Err("get number needs chromiumoxide".into())
     }
 
     pub fn wait_until(&mut self, _condition: &str, _selector: &str) -> Result<(), String> {
-        Ok(())
+        Err("wait until needs chromiumoxide".into())
     }
 }
