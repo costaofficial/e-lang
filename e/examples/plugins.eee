@@ -36,6 +36,8 @@ do
     let http = sys_call "http" "e_get" "https://example.com"
     log "HTTP.get length: " + len http + " chars"
 
+    log "HTTP POST test skipped (needs external server)"
+
     log "=== ALL TESTS PASSED ==="
 done
 

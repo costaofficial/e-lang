@@ -41,6 +41,7 @@ impl PluginManager {
         let mut http_fns: HashMap<String, PluginFn> = HashMap::new();
         http_fns.insert("e_get".to_string(), sys_http_get);
         http_fns.insert("e_post".to_string(), sys_http_post);
+        http_fns.insert("e_post_json".to_string(), sys_http_post_json);
         self.register("http", http_fns);
 
         let mut json_fns: HashMap<String, PluginFn> = HashMap::new();
@@ -200,6 +201,26 @@ fn sys_http_post(args: &str) -> String {
             Err(e) => format!("{{\"error\": \"read failed: {}\"}}", e),
         },
         Err(e) => format!("{{\"error\": \"{}\"}}", e),
+    }
+}
+
+fn sys_http_post_json(input: &str) -> String {
+    // Accepts a JSON object: {"url": "...", "body": "..."}
+    // No separator issues since it's proper JSON
+    match serde_json::from_str::<serde_json::Value>(input) {
+        Ok(val) => {
+            let url = val.get("url").and_then(|v| v.as_str()).unwrap_or("");
+            let body = val.get("body").and_then(|v| v.as_str()).unwrap_or("");
+            if url.is_empty() { return "{{\"error\": \"missing url\"}}".to_string(); }
+            match ureq::post(url).send_string(body) {
+                Ok(resp) => match resp.into_string() {
+                    Ok(b) => b,
+                    Err(e) => format!("{{\"error\": \"{}\"}}", e),
+                },
+                Err(e) => format!("{{\"error\": \"{}\"}}", e),
+            }
+        }
+        Err(e) => format!("{{\"error\": \"invalid JSON: {}\"}}", e),
     }
 }
 
