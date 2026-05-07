@@ -21,6 +21,10 @@ struct Cli {
     /// Live execution mode
     #[arg(long)]
     live: bool,
+
+    /// Arguments passed to the E script
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    script_args: Vec<String>,
 }
 
 fn main() {
@@ -51,11 +55,12 @@ fn main() {
     let has_sections = source.contains("\n:sys") || source.contains("\n:core") || source.contains("\n:ui")
         || source.starts_with(":sys") || source.starts_with(":core") || source.starts_with(":ui");
 
+    let script_args = cli.script_args;
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         if has_sections {
             run_eee(&filepath, &source, cli.live);
         } else {
-            run_e(&filepath, &source, cli.live);
+            run_e(&filepath, &source, cli.live, &script_args);
         }
     }));
 
@@ -72,7 +77,7 @@ fn main() {
     }
 }
 
-fn run_e(filepath: &str, source: &str, live: bool) {
+fn run_e(filepath: &str, source: &str, live: bool, script_args: &[String]) {
     let tokens = match lexer::lex(source) {
         Ok(t) => t,
         Err(e) => {
@@ -92,12 +97,14 @@ fn run_e(filepath: &str, source: &str, live: bool) {
     if live {
         let mut driver = drivers::RealDriver::new();
         let mut scope = runtime::Scope::new();
+        set_args(&mut scope, script_args, filepath);
         for node in &ast {
             runtime::exec_node(node, &mut scope, &mut driver);
         }
     } else {
         let mut driver = drivers::DryDriver::new();
         let mut scope = runtime::Scope::new();
+        set_args(&mut scope, script_args, filepath);
         for node in &ast {
             runtime::exec_node(node, &mut scope, &mut driver);
         }
@@ -106,7 +113,17 @@ fn run_e(filepath: &str, source: &str, live: bool) {
     println!("\n✅ Done: {}", filepath);
 }
 
+fn set_args(scope: &mut runtime::Scope, args: &[String], script: &str) {
+    use crate::ast::Value;
+    let mut all = vec![Value::Str(script.to_string())];
+    for a in args {
+        all.push(Value::Str(a.clone()));
+    }
+    scope.def_var("args", Value::List(all));
+}
+
 fn run_eee(filepath: &str, source: &str, live: bool) {
+    // run_eee doesn't use script_args currently — args are only for non-3-tier scripts
     let efile = match parser::parse_eee(source) {
         Ok(f) => f,
         Err(e) => {
