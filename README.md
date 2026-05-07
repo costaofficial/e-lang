@@ -69,7 +69,7 @@ e script.eee arg1 arg2         # pass arguments (available as args variable)
 
 ## Documentation
 
-- [GRAMMATICA.md](GRAMMATICA.md) — formal grammar (EBNF)
+- [GRAMMAR.md](GRAMMAR.md) — formal grammar (EBNF)
 - [SPEC.md](SPEC.md) — full language specification
 - [TODOs.md](TODOs.md) — roadmap and pending items
 
