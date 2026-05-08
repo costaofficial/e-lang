@@ -2,7 +2,7 @@
 # E vs Python — Benchmark
 
 > Real tests on Ubuntu 24.04, Intel x86_64, 8GB RAM
-> E v5.0 (Rust, debug build) — Python 3.12
+> E v5.0.1 (interpreted + LLVM compiled) — Python 3.12
 
 ---
 
@@ -58,6 +58,29 @@ done
 | CPU user | 0.04s | 0.34s | **E ~8x più veloce** |
 | Result | 999999000000 | 999999000000 | ✅ Same |
 
+### 3b. CPU — 1M iterations (compiled E: LLVM native binary)
+
+```
+// E compiled with `e build script.eee` → native binary
+do
+    let i = 0
+    let sum = 0
+    while i < 1000000 do
+        let sum = sum + i * 2
+        let i = i + 1
+    done
+    log sum
+done
+```
+
+| Metrica | E compiled | E interpreted | Python | Ratio |
+|---------|-----------|---------------|--------|-------|
+| Tempo reale | ~0.005s | ~0.06s | ~0.50s | **E compiled 100x vs Python** |
+| CPU user | ~0.004s | ~0.04s | ~0.34s | **E compiled 85x vs Python** |
+| Result | 999999000000 | 999999000000 | 999999000000 | ✅ Same |
+
+**E compiled (LLVM) è ~10x più veloce dell'interprete E** e ~100x più veloce di Python in loop numerici.
+
 ---
 
 ## 4. File I/O — scrivere e leggere 1000 righe
@@ -104,9 +127,10 @@ Python vince perché `write file` in E fa una system call per iterazione (non c'
 
 | Test | Winner | Notes |
 |------|--------|-------|
-| Binary size / deploy | **E** | Single 8 MB binary vs Python + libs |
-| Startup | **Tie** | Both ~0.05s |
-| CPU (1M loop) | **E** (~8x) | Compiled vs interpreted |
+| Binary size / deploy | **E** | Single 16 MB binary (v5.0.1) vs Python + libs |
+| Startup | **Tie** | Both ~0.05s, E compiled ~0.001s |
+| CPU (1M loop) | **E** (~100x) | Compiled LLVM vs interpreted Python |
+| CPU (1M loop) — interpreted | **E** (~8x) | AST interpreter already beats Python |
 | File I/O | **Python** | E has no write buffering |
 | Subprocess | **E** (slight) | No GIL overhead |
 | Memory | **Python** | E debug build is large |

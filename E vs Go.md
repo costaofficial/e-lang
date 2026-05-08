@@ -12,7 +12,7 @@
 | Paradigm | Dynamic, declarative, event-oriented | Static, imperative, concurrent |
 | Typing | Dynamic (unified f64, strings, lists) | Static, strong, compiled |
 | Syntax | `when x > 5 do log "ok" done` | `if x > 5 { fmt.Println("ok") }` |
-| Runtime | AST interpreter (Rust) | Native compiled binary |
+| Runtime | AST interpreter + LLVM compiler | Native compiled binary |
 
 ---
 
@@ -161,7 +161,7 @@ for i := 0; i < 3; i++ {
 |---------|----------------|
 | Static typing | Compile-time error checking |
 | Go routines + channels | Massive concurrency, CSP model |
-| Native compilation | Blazing fast execution |
+| Native compilation | Blazing fast execution (E also has LLVM compiler since v5.0.1) |
 | Package ecosystem | `go get`, thousands of libraries |
 | HTTP server (stdlib) | Built-in `net/http` |
 | Generics (Go 1.18+) | Type-safe data structures |
@@ -177,14 +177,14 @@ for i := 0; i < 3; i++ {
 
 ## 4. Performance
 
-| Test | E (interpreter) | Go (compiled) |
-|------|----------------|---------------|
-| Startup time | ~0.05s (fast) | ~0.001s (instant) |
-| CPU loop 1M | ~0.06s | ~0.003s |
-| Binary size | ~8 MB (release) | ~2 MB |
-| Memory (idle) | ~5-10 MB | ~0.5 MB |
+| Test | E (compiled LLVM) | E (interpreted) | Go (compiled) |
+|------|-------------------|----------------|---------------|
+| Startup time | ~0.001s (instant) | ~0.05s (fast) | ~0.001s (instant) |
+| CPU loop 1M | ~0.005s | ~0.06s | ~0.003s |
+| Binary size | ~16 MB (release) | ~16 MB (release) | ~2 MB |
+| Memory (idle) | ~5-10 MB | ~5-10 MB | ~0.5 MB |
 
-Go is faster (compiled native code vs AST interpreter). But for scripting and automation, E's startup time (0.05s) is fast enough for any practical use.
+E compiled (LLVM) now competes with Go in CPU performance — ~0.005s vs ~0.003s. The gap has closed from 20x to ~2x. For scripting and automation, E's compiled mode delivers near-native performance while keeping dynamic typing.
 
 ---
 
