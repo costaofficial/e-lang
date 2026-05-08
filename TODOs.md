@@ -1,4 +1,4 @@
-<!-- Copyright (c) 2025 Costa -->
+<!-- Copyright (c) 2026 Costa -->
 # E — Roadmap & TODOs
 
 > v5.0 — May 2026
