@@ -1,0 +1,19 @@
+// Copyright (c) 2026 Costa
+// E Browser — opens URLs in a native WebView
+// Usage from shell:
+//   e --url https://example.com
+//
+// Or from E Shell:
+//   e ~/path> run "e --url https://example.com"
+//   e ~/path> :open "https://example.com"
+//
+// Or edit the URL below and run:
+//   e browser.eee
+
+:core
+log "E Mini Browser"
+log "Apri la finestra WebView..."
+log "Chiudi la finestra per uscire"
+
+:ui
+https://example.com
